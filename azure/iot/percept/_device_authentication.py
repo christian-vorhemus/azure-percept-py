@@ -44,7 +44,9 @@ class DeviceAuthentication:
             self._current += received
 
             if self._active_thread is False:
-                threading.Thread(target=self._set_received_data).start()
+                t = threading.Thread(target=self._set_received_data)
+                t.daemon = True
+                t.start()
                 self._active_thread = True
 
     def _set_received_data(self):
@@ -62,12 +64,13 @@ class DeviceAuthentication:
     def start_authentication(self):
         self._s.connect((self.auth_url, 443))
         self._l_thread = threading.Thread(target=self._listen_service, args=(4096,))
+        self._l_thread.daemon = True
         self._l_thread.start()
 
         # This is for audio/ear SoM
         dev = usb.core.find(idVendor=self.vid, idProduct=self.pid)
         if dev is None:
-            raise ValueError('Device is not found')
+            raise ValueError('Device not found')
         # print(dev)
 
         if dev.is_kernel_driver_active(0):
@@ -97,13 +100,13 @@ class DeviceAuthentication:
                 # print("Authentication failed")
                 self._s.close()
                 self._l_thread.join()
-                break
+                sys.exit()
             elif read_msg[1] == 5:
                 # print("Authentication successful!!!")
                 self.is_authenticated = True
                 self._s.close()
                 self._l_thread.join()
-                break
+                sys.exit()
             elif read_msg[1] == 2:
                 # print(f"Call Webservice (2)")
                 self._call_service(read_msg[2:])

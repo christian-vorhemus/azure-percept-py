@@ -91,6 +91,11 @@ void *record(void *args)
     fputc(0x00, out);
   }
   gettimeofday(&tval_before, NULL);
+  if (!capture_handle)
+  {
+    fprintf(stderr, "Error: capture_handle is NULL\n");
+    return NULL;
+  }
   while (isRecording)
   {
     // fputc(0x05, out);
@@ -111,22 +116,23 @@ void *record(void *args)
 static PyObject *method_getraw(PyObject *self, PyObject *args)
 {
   int size;
+  PyObject *res;
   int err;
   if (!PyArg_ParseTuple(args, "i", &size))
   {
     return NULL;
   }
 
-  char *buffer = (char *)malloc(size * snd_pcm_format_width(format) / 8 * channels);
-  fprintf(stdout, "buffer allocated\n");
-  if ((err = snd_pcm_readi(capture_handle, buffer, size)) != size)
+  char *buf = (char *)malloc(size * snd_pcm_format_width(format) / 8 * channels);
+  if ((err = snd_pcm_readi(capture_handle, buf, size)) != size)
   {
     fprintf(stderr, "read from audio interface failed (%s)\n", err,
             snd_strerror(err));
     exit(1);
   }
-  // free(buffer);
-  return PyBytes_FromString(buffer);
+  res = PyBytes_FromString(buf);
+  free(buf);
+  return res;
 }
 
 static PyObject *method_startrecording(PyObject *self, PyObject *args)
@@ -165,6 +171,8 @@ static PyObject *method_preparedevice(PyObject *self, PyObject *args)
   {
     return NULL;
   }
+
+  // fprintf(stderr, "Hardware: %s\n", hardware);
 
   buffer_frames = 160;
   rate = 16000;

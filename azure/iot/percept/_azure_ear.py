@@ -2,6 +2,7 @@ import time
 from ._device_authentication import DeviceAuthentication
 import threading
 import io
+import sys
 import _hardware
 from abc import ABC
 
@@ -27,7 +28,9 @@ class AzureEar(AzurePercept):
         if authenticator is None:
             authenticator = DeviceAuthentication(0x045e, 0x0673)
         if _hardware.get_azure_ear_hardware() == -1:
-            threading.Thread(target=self._authenticate, args=(authenticator, timeout_seconds,)).start()
+            t = threading.Thread(target=self._authenticate, args=(authenticator, timeout_seconds,))
+            t.daemon = True
+            t.start()
         else:
             self.device_no = f"hw:{_hardware.get_azure_ear_hardware()},0"
             _hardware.prepare_device(self.device_no)
@@ -39,18 +42,19 @@ class AzureEar(AzurePercept):
             return True
 
     def _authenticate(self, authenticator, timeout_seconds):
-        authenticator.start_authentication()
+        threading.Thread(target=authenticator.start_authentication).start()
         t = 0
         while t < timeout_seconds:
-            if authenticator.is_authenticated == True:
+            if _hardware.get_azure_ear_hardware() != -1:
                 break
             t += 1
             time.sleep(1)
-        if authenticator.is_authenticated == False:
+        if _hardware.get_azure_ear_hardware() == -1:
             raise Exception("Azure Eye could not authenticate")
         else:
             self.device_no = f"hw:{_hardware.get_azure_ear_hardware()},0"
             _hardware.prepare_device(self.device_no)
+        sys.exit()
 
     def start_recording(self, file):
         """
