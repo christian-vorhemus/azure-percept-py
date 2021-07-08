@@ -24,7 +24,6 @@ class AzureEar(AzurePercept):
     def __init__(self, authenticator: DeviceAuthentication = None, timeout_seconds: int = 100):
         # super().__init__(authenticator, timeout_seconds)
         self.device_no = None
-        self.managed_file = False
         if authenticator is None:
             authenticator = DeviceAuthentication(0x045e, 0x0673)
         if _hardware.get_azure_ear_hardware() == -1:
@@ -33,7 +32,7 @@ class AzureEar(AzurePercept):
             t.start()
         else:
             self.device_no = f"hw:{_hardware.get_azure_ear_hardware()},0"
-            _hardware.prepare_device(self.device_no)
+            _hardware.prepare_ear(self.device_no)
 
     def is_authenticated(self):
         if _hardware.get_azure_ear_hardware() == -1:
@@ -53,7 +52,7 @@ class AzureEar(AzurePercept):
             raise Exception("Azure Eye could not authenticate")
         else:
             self.device_no = f"hw:{_hardware.get_azure_ear_hardware()},0"
-            _hardware.prepare_device(self.device_no)
+            _hardware.prepare_ear(self.device_no)
         sys.exit()
 
     def start_recording(self, file):
@@ -63,14 +62,12 @@ class AzureEar(AzurePercept):
             File can either be BufferedWriter opened with open("./file.wav", "wb") or a 
             string that specifies the path to a new file to be created
         """
-        self.managed_file = False
         if self.is_authenticated() == False:
             raise Exception("Device must be authenticated before recording can start")
         if isinstance(file, io.BufferedWriter):
             _hardware.start_recording(file)
         elif isinstance(file, str):
             self.file = open(file, 'w+')
-            self.managed_file = True
             _hardware.start_recording(self.file)
         else:
             raise Exception("start_recording(filehandle) must be called with a file handle")
@@ -89,3 +86,6 @@ class AzureEar(AzurePercept):
             Specifies the number of frames read and returned from the audio interface
         """
         return _hardware.get_raw_audio(frames_count)
+
+    def close(self):
+        _hardware.close_ear()

@@ -81,7 +81,6 @@ int writeWAVHeader(FILE *out, struct WavHeader *hdr)
 void *record(void *args)
 {
   int err;
-  // fprintf(stdout, "Recording...\n");
   isRecording = true;
   buffer = (char *)malloc(buffer_frames * snd_pcm_format_width(format) / 8 * channels);
   // fprintf(stdout, "buffer allocated\n");
@@ -98,13 +97,10 @@ void *record(void *args)
   }
   while (isRecording)
   {
-    // fputc(0x05, out);
-    // sleep(1);
     if ((err = snd_pcm_readi(capture_handle, buffer, buffer_frames)) !=
         buffer_frames)
     {
-      fprintf(stderr, "read from audio interface failed (%s)\n", err,
-              snd_strerror(err));
+      fprintf(stderr, "read from audio interface failed (%s)\n", snd_strerror(err));
       exit(1);
     }
 
@@ -116,22 +112,45 @@ void *record(void *args)
 static PyObject *method_getraw(PyObject *self, PyObject *args)
 {
   int size;
+  int ret;
+  int total = 0;
   PyObject *res;
-  int err;
   if (!PyArg_ParseTuple(args, "i", &size))
   {
     return NULL;
   }
 
-  char *buf = (char *)malloc(size * snd_pcm_format_width(format) / 8 * channels);
-  if ((err = snd_pcm_readi(capture_handle, buf, size)) != size)
+  char *tot = (char *)malloc(size * snd_pcm_format_width(format) / 8 * channels);
+  buffer = (char *)malloc(buffer_frames * snd_pcm_format_width(format) / 8 * channels);
+  while (total < size)
   {
-    fprintf(stderr, "read from audio interface failed (%s)\n", err,
-            snd_strerror(err));
-    exit(1);
+    ret = snd_pcm_readi(capture_handle, buffer, buffer_frames);
+    if (total + ret > size)
+    {
+      break;
+    }
+    // fprintf(stdout, "Ret value: %i\n", ret);
+    if (ret < 0)
+    {
+      fprintf(stderr, "Error: Ret value: %i\n", ret);
+      exit(1);
+    }
+    else
+    {
+      int j = 0;
+      for (int i = total; i < total + ret; i++)
+      {
+        tot[i] = buffer[j];
+        j++;
+      }
+      total += ret;
+    }
   }
-  res = PyBytes_FromString(buf);
-  free(buf);
+  char *final = (char *)malloc(total);
+  memcpy(final, tot, total);
+  free(tot);
+  res = PyBytes_FromString(final);
+  free(final);
   return res;
 }
 
@@ -164,7 +183,7 @@ static PyObject *method_startrecording(PyObject *self, PyObject *args)
   return Py_BuildValue("");
 }
 
-static PyObject *method_preparedevice(PyObject *self, PyObject *args)
+static PyObject *method_prepareear(PyObject *self, PyObject *args)
 {
   int err;
   if (!PyArg_ParseTuple(args, "s", &hardware))
@@ -268,6 +287,13 @@ static PyObject *method_preparedevice(PyObject *self, PyObject *args)
   return Py_BuildValue("");
 }
 
+static PyObject *method_closeear(PyObject *self, PyObject *args)
+{
+  snd_pcm_close(capture_handle);
+  free(buffer);
+  return Py_BuildValue("");
+}
+
 static PyObject *method_stoprecording(PyObject *self, PyObject *args)
 {
   isRecording = false;
@@ -337,7 +363,8 @@ static PyMethodDef HardwareMethods[] = {
     {"start_recording", method_startrecording, METH_VARARGS, "Start Azure Ear audio recording"},
     {"stop_recording", method_stoprecording, METH_VARARGS, "Stop Azure Ear audio recording"},
     {"get_raw_audio", method_getraw, METH_VARARGS, "Get audio frames as byte array"},
-    {"prepare_device", method_preparedevice, METH_VARARGS, ""},
+    {"prepare_ear", method_prepareear, METH_VARARGS, "Prepares the Azure Eye device"},
+    {"close_ear", method_closeear, METH_VARARGS, "Closes the Azure Eye device"},
     {NULL, NULL, 0, NULL}};
 
 static struct PyModuleDef _hardwaremodule = {
