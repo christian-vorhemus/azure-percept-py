@@ -3,7 +3,7 @@ This is the source code for azure-percept-py - an unofficial Python library to a
 ## Prerequisites
 Make sure the following is installed on your Percept device or the container you want to use
 - libalsa and corresponding header files (run `sudo yum install alsa-lib-devel`)
-- pyusb (run `sudo yum install pip3` first and then `sudo pip3 install pyusb`)
+- pyusb (run `sudo yum install libusb-devel` and then run `sudo yum install pip3` first and afterwards `sudo pip3 install pyusb`)
 - pthreads
 
 ## Install
