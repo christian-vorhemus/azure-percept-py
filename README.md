@@ -63,7 +63,9 @@ while True:
 
 print("Authentication successful!")
 
-eye.convert_model("/home/admin/mobilenetv2-7.onnx", "/home/admin")
+# this will convert a ONNX model to a model file with the same name 
+# and a .blob suffix to the output directory "/home/admin"
+eye.convert_model("/home/admin/mobilenetv2-7.onnx", "/home/admin") 
 eye.start_inference("/home/admin/mobilenetv2-7.blob")
 arr = eye.get_inference() # arr is a numpy array that contains the model output
 print(arr.shape)
