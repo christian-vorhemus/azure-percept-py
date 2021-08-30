@@ -99,8 +99,8 @@ while True:
 print("Authentication successful!")
 
 img = eye.get_frame() # can take several seconds
-img = img[...,::-1].copy()
-pil_img = Image.fromarray(img)
+img = img[...,::-1].copy() # copy the BGR image as RGB
+pil_img = Image.fromarray(img) # convert the numpy array to a Pillow image
 pil_img.save("frame.jpg")
 eye.close()
 ```
