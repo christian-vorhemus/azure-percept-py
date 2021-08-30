@@ -14,7 +14,7 @@ The following guide assumes you run the code directly on the Percept board (CBL 
 - Run `sudo pip3 install .`
 - To uninstall run `sudo pip3 uninstall azure-percept`
 
-Note that the package brings pre-built libraries that will only run on an aarch64 architecture!
+Note that the package includes pre-built libraries that will only run on an aarch64 architecture!
 
 ## Azure Ear sample
 The following sample authenticates the Azure Ear sensor, records audio for 5 seconds and saves the result locally as a WAV file. Create a new file `earsample.py` with the following content
