@@ -96,7 +96,7 @@ class AzureEye(AzurePercept):
     def convert_model(self, filepath, output_dir="./"):
         """
         Loads a .onnx model file and converts it to a .blob file for the Intel Myriad VPU to use.
-        Only model outputs using 32 bit floats are supported as for now.
+        Only 1D model outputs using 32 bit floats are supported as for now.
         """
         tmp_model_name = str(uuid.uuid4())
         model_name = os.path.basename(filepath).split(".")[0]
