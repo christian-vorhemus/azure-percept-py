@@ -1,5 +1,9 @@
 This is the source code for azure-percept-py - an unofficial Python library to access the sensors of Azure Percept in Python.
 
+## Connect to your Percept
+
+Please refer to the official documentation to learn how to connect to the device: https://docs.microsoft.com/en-us/azure/azure-percept/how-to-ssh-into-percept-dk
+
 ## Prerequisites
 Make sure the following is installed on your Percept device or the container you want to use
 - libalsa and corresponding header files (run `sudo yum install alsa-lib-devel`)
@@ -45,7 +49,7 @@ ear.close()
 Run `sudo python3 earsample.py` to run the script.
 
 ## Azure Eye sample
-The following sample shows how you can run a model on the Azrue Eye Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [Mobilenet](https://github.com/onnx/models/raw/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx). Create a new file `eyesample.py` with the following content
+The following sample shows how you can run a model on the Azure Eye Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [Mobilenet](https://github.com/onnx/models/raw/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx). Create a new file `eyesample.py` with the following content
 
 ```python
 from azure.iot.percept import AzureEye
