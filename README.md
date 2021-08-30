@@ -3,8 +3,9 @@ This is the source code for azure-percept-py - an unofficial Python library to a
 ## Prerequisites
 Make sure the following is installed on your Percept device or the container you want to use
 - libalsa and corresponding header files (run `sudo yum install alsa-lib-devel`)
-- pyusb (run `sudo yum install libusb-devel` and then run `sudo yum install pip3` first and afterwards `sudo pip3 install pyusb`)
+- pyusb (run `sudo yum install libusb-devel`)
 - pthreads
+- Optional: Install pip in case you need additional Python packages: `sudo yum install pip3`
 
 ## Install
 The following guide assumes you run the code directly on the Percept board (CBL Mariner OS). You can also create a docker image and install the Python module there, in that case make sure that you mount the host's /dev/bus/usb into the image.
@@ -13,10 +14,10 @@ The following guide assumes you run the code directly on the Percept board (CBL 
 - Run `sudo pip3 install .`
 - To uninstall run `sudo pip3 uninstall azure-percept`
 
-Note that the package brings pre-built libraries that will only run on an aarch64 architecture!
+Note that the package includes pre-built libraries that will only run on an aarch64 architecture!
 
 ## Azure Ear sample
-The following sample authenticates the Azure Ear sensor, records audio for 5 seconds and saves the result locally as a WAV file. Create a new file `earsample.py` in the `azure-percept-py` folder with the following content
+The following sample authenticates the Azure Ear sensor, records audio for 5 seconds and saves the result locally as a WAV file. Create a new file `earsample.py` with the following content
 
 ```python
 from azure.iot.percept import AzureEar
@@ -26,7 +27,7 @@ ear = AzureEar()
 
 print("Authenticating sensor...")
 while True:
-    if ear.is_authenticated() is True:
+    if ear.is_ready() is True:
         break
     else:
         time.sleep(1)
@@ -38,7 +39,60 @@ ear.start_recording("./sample.wav")
 time.sleep(5)
 ear.stop_recording()
 print("Recording stopped")
-
+ear.close()
 ```
 
 Run `sudo python3 earsample.py` to run the script.
+
+## Azure Eye sample
+The following sample shows how you can run a model on the Azrue Eye Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [Mobilenet](https://github.com/onnx/models/raw/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx). Create a new file `eyesample.py` with the following content
+
+```python
+from azure.iot.percept import AzureEye
+import time
+import numpy
+
+eye = AzureEye()
+
+print("Authenticating sensor...")
+while True:
+    if eye.is_ready() is True:
+        break
+    else:
+        time.sleep(1)
+
+print("Authentication successful!")
+
+eye.convert_model("/home/admin/mobilenetv2-7.onnx", "/home/admin")
+eye.start_inference("/home/admin/mobilenetv2-7.blob")
+arr = eye.get_inference() # arr is a numpy array that contains the model output
+print(arr.shape)
+eye.stop_inference()
+eye.close()
+```
+
+Run `sudo python3 eyesample.py` to run the script. Especially the model conversion can take several minutes. `eye.start_inference(model)` will start the Azure Eye Camera and those images are used as an input for `model`. Then `eye.get_inference()` is used to get prediction results as numpy vectors from the device.
+
+The following sample gets an image (as a numpy array) from the Azure Eye device (to save the image you can use `pil_img = Image.fromarray(img)` from the [pillow](https://pypi.org/project/Pillow/) package and save with `pil_img.save("frame.jpg")`)
+
+```python
+from azure.iot.percept import AzureEye
+import time
+import numpy
+
+eye = AzureEye()
+
+print("Authenticating sensor...")
+while True:
+    if eye.is_ready() is True:
+        break
+    else:
+        time.sleep(1)
+
+print("Authentication successful!")
+
+img = eye.get_frame() # can take several seconds
+print(img.shape)
+eye.close()
+```
+
