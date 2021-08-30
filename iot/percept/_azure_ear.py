@@ -26,7 +26,7 @@ class AzureEar(AzurePercept):
         self.device_no = None
         if authenticator is None:
             authenticator = DeviceAuthentication(0x045e, 0x0673)
-        if self.is_authenticated == False:
+        if self.is_authenticated() == False:
             t = threading.Thread(target=self._authenticate, args=(authenticator, timeout_seconds,))
             t.daemon = True
             t.start()

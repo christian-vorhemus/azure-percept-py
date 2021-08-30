@@ -99,45 +99,10 @@ class AzureEye(AzurePercept):
         """
         tmp_model_name = str(uuid.uuid4())
         model_name = os.path.basename(filepath).split(".")[0]
-        # parser = argparse.ArgumentParser()
-        # parser.add_argument('--input_model',required=False, default=filepath)
-        # parser.add_argument('--output_dir',required=False, default='/tmp')
-        # parser.add_argument('--silent', required=False, default=True)
-        # parser.add_argument('--log_level', required=False, default='ERROR')
-        # parser.add_argument('--model_name', required=False, default=tmp_model_name)
-        # parser.add_argument('--transform', required=False, default="")
-        # parser.add_argument('--legacy_ir_generation', required=False, default=False)
-        # parser.add_argument('--reverse_input_channels', required=False, default=False)
-        # parser.add_argument('--scale', required=False)
-        # parser.add_argument('--input_shape', required=False)
-        # parser.add_argument('--input', required=False)
-        # parser.add_argument('--output', required=False)
-        # parser.add_argument('--mean_values', required=False, default=())
-        # parser.add_argument('--scale_values', required=False, default=())
-        # parser.add_argument('--data_type', required=False, default='float')
-        # parser.add_argument('--disable_fusing', required=False, default=True)
-        # parser.add_argument('--disable_resnet_optimization', required=False, default=True)
-        # parser.add_argument('--finegrain_fusing', required=False)
-        # parser.add_argument('--disable_gfusing', required=False, default=True)
-        # parser.add_argument('--enable_concat_optimization', required=False, default=True)
-        # parser.add_argument('--move_to_preprocess', required=False, default=True)
-        # parser.add_argument('--extensions', required=False, default="DIR")
-        # parser.add_argument('--batch', required=False, default=None)
-        # parser.add_argument('--version', required=False, default="2021.4.0-3839-cd81789d294-releases/2021/4")
-        # parser.add_argument('--freeze_placeholder_with_value', required=False, default=None)
-        # parser.add_argument('--generate_deprecated_IR_V7', required=False, default=False)
-        # parser.add_argument('--static_shape', required=False, default=False)
-        # parser.add_argument('--keep_shape_ops', required=False, default=True)
-        # parser.add_argument('--disable_weights_compression', required=False, default=False)
-        # parser.add_argument('--progress', required=False, default=False)
-        # parser.add_argument('--stream_output', required=False, default=False)
-        # parser.add_argument('--transformations_config', required=False)
-
         mo_path = str(path.join(path.dirname(__file__)))
         print("Converting model, this can take time, please wait...")
         subprocess.check_call(f"python3 {mo_path}/mo.py --input_model {filepath} --output_dir /tmp --model_name {tmp_model_name}", shell=True)
 
-        # mo.main(parser, 'onnx')
         assets_path = str(path.join(path.dirname(__file__), 'assets'))
         subprocess.check_call(f"{assets_path}/myriad_compile -m /tmp/{tmp_model_name}.xml -o {path.join(output_dir, model_name)}.blob -VPU_NUMBER_OF_SHAVES 8 -VPU_NUMBER_OF_CMX_SLICES 8 -ip U8 -op FP32", shell=True)
 
@@ -147,12 +112,19 @@ class AzureEye(AzurePercept):
         """
         self._inference_running = True
         _azureeye.start_inference(blob_model_path)
+        time.sleep(2)
 
     def stop_inference(self):
+        """
+        Stops the inference thread
+        """
         self._inference_running = False
         _azureeye.stop_inference()
 
     def get_inference(self):
+        """
+        Returns the model inference output as a numpy array. The array length depends on the model specification.
+        """
         if self._inference_running is False:
             raise Exception(f"Inference not started. Call <AzureyeObject>.start_inference('/path/to/model.blob') first")
 
@@ -176,4 +148,7 @@ class AzureEye(AzurePercept):
             raise Exception(f"Unknown datatype received on return: {res_type}")
 
     def close(self):
+        """
+        Call this when the AzureEye object is no longer needed to clean up
+        """
         _azureeye.close_eye()
