@@ -79,12 +79,13 @@ eye.close()
 
 Run `sudo python3 eyesample.py` to run the script. Especially the model conversion can take several minutes. `eye.start_inference(model)` will start the Azure Eye Camera and those images are used as an input for `model`. Then `eye.get_inference()` is used to get prediction results as numpy vectors from the device.
 
-The following sample gets an image (as a numpy array) from the Azure Eye device (to save the image you can use `pil_img = Image.fromarray(img)` from the [pillow](https://pypi.org/project/Pillow/) package and save with `pil_img.save("frame.jpg")`)
+The following sample gets an image (as a numpy array) from the Azure Eye device in BGR format with shape (height, width, channels) and saves it as a JPG file.
 
 ```python
 from azure.iot.percept import AzureEye
 import time
 import numpy
+from PIL import Image
 
 eye = AzureEye()
 
@@ -98,7 +99,9 @@ while True:
 print("Authentication successful!")
 
 img = eye.get_frame() # can take several seconds
-print(img.shape)
+img = img[...,::-1].copy()
+pil_img = Image.fromarray(img)
+pil_img.save("frame.jpg")
 eye.close()
 ```
 
