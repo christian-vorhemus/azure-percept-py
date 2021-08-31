@@ -8,7 +8,7 @@ Please refer to the official documentation to learn how to connect to the device
 Make sure the following is installed on your Percept device or the container you want to use
 - libalsa and corresponding header files (run `sudo yum install alsa-lib-devel`)
 - pyusb (run `sudo yum install libusb-devel`)
-- pthreads
+- pthreads (libpthread should be available on most OS by default, check your library path - for example /usr/lib/ - to be sure)
 - Optional: Install pip in case you need additional Python packages: `sudo yum install pip3`
 
 ## Install
