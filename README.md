@@ -8,7 +8,7 @@ Please refer to the official documentation to learn how to connect to the device
 Make sure the following is installed on your Percept device or the container you want to use
 - libalsa and corresponding header files (run `sudo yum install alsa-lib-devel`)
 - pyusb (run `sudo yum install libusb-devel`)
-- pthreads
+- pthreads (libpthread should be available on most OS by default, check your library path - for example /usr/lib/ - to be sure)
 - Optional: Install pip in case you need additional Python packages: `sudo yum install pip3`
 
 ## Install
@@ -68,9 +68,9 @@ while True:
 print("Authentication successful!")
 
 # this will convert a ONNX model to a model file with the same name 
-# and a .blob suffix to the output directory "/home/admin"
-eye.convert_model("/home/admin/mobilenetv2-7.onnx", "/home/admin") 
-eye.start_inference("/home/admin/mobilenetv2-7.blob")
+# and a .blob suffix to the output directory "/path/to"
+eye.convert_model("/path/to/mobilenetv2-7.onnx", "/path/to") 
+eye.start_inference("/path/to/mobilenetv2-7.blob")
 arr = eye.get_inference() # arr is a numpy array that contains the model output
 print(arr.shape)
 eye.stop_inference()
@@ -79,12 +79,13 @@ eye.close()
 
 Run `sudo python3 eyesample.py` to run the script. Especially the model conversion can take several minutes. `eye.start_inference(model)` will start the Azure Eye Camera and those images are used as an input for `model`. Then `eye.get_inference()` is used to get prediction results as numpy vectors from the device.
 
-The following sample gets an image (as a numpy array) from the Azure Eye device (to save the image you can use `pil_img = Image.fromarray(img)` from the [pillow](https://pypi.org/project/Pillow/) package and save with `pil_img.save("frame.jpg")`)
+The following sample gets an image (as a numpy array) from the Azure Eye device in BGR format with shape (height, width, channels) and saves it as a JPG file.
 
 ```python
 from azure.iot.percept import AzureEye
 import time
 import numpy
+from PIL import Image
 
 eye = AzureEye()
 
@@ -97,8 +98,10 @@ while True:
 
 print("Authentication successful!")
 
-img = eye.get_frame() # can take several seconds
-print(img.shape)
+img = eye.get_frame() # get a camera frame from the Azure Eye device; can take several seconds
+img = img[...,::-1].copy() # copy the BGR image as RGB
+pil_img = Image.fromarray(img) # convert the numpy array to a Pillow image
+pil_img.save("frame.jpg")
 eye.close()
 ```
 
