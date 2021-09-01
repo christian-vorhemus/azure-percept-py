@@ -99,11 +99,12 @@ class AzureEar(AzurePercept):
             Specifies the number of frames read and returned from the audio interface
         """
         bytes = _hardware.get_raw_audio(frames_count)
-        arr = np.zeros((int(len(bytes)/20), 5))
-        for j in range(0, (int(len(bytes)/20))):
-            for k in range(0, 5):
-                arr[j][k] = int.from_bytes(bytes[k*4:(k*4)+4], byteorder=sys.byteorder, signed=True)
-        return arr
+        return bytes
+        # arr = np.zeros((int(len(bytes)/20), 5))
+        # for j in range(0, (int(len(bytes)/20))):
+        #     for k in range(0, 5):
+        #         arr[j][k] = int.from_bytes(bytes[k*4:(k*4)+4], byteorder=sys.byteorder, signed=True)
+        # return arr
 
     def close(self):
         """
