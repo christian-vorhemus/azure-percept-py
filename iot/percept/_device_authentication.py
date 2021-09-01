@@ -18,6 +18,7 @@ class DeviceAuthentication:
         self._current_data = None
         self._previous_data = None
         self._current = b''
+        self._is_listening = True
         self._active_thread = False
         self._s = socket.socket()
 
@@ -38,7 +39,7 @@ class DeviceAuthentication:
 
     def _listen_service(self, arr, max_length=4096):
         # print("Start listening...")
-        while True:
+        while self._is_listening:
             received = self._s.recv(max_length)
             # print(f"Received from webservice: {received}")
             self._current += received
@@ -98,14 +99,18 @@ class DeviceAuthentication:
         while True:
             if read_msg[1] == 4:
                 print("Authentication failed")
+                self._is_listening = False
+                self._s.shutdown(socket.SHUT_RDWR)
                 self._s.close()
-                self._l_thread.join()
+                # self._l_thread.join()
                 sys.exit()
             elif read_msg[1] == 5:
                 # print("Authentication successful!")
                 self.is_authenticated = True
+                self._is_listening = False
+                self._s.shutdown(socket.SHUT_RDWR)
                 self._s.close()
-                self._l_thread.join()
+                # self._l_thread.join()
                 sys.exit()
             elif read_msg[1] == 2:
                 # print(f"Call Webservice (2)")

@@ -16,6 +16,13 @@ import numpy as np
 # from .mo import main as mo
 
 class AzureEye(AzurePercept):
+    """The AzureEye class initiates the Azure Eye device. It can be used to get camera data or run model inference jobs
+    :param DeviceAuthentication authenticator:
+        The authenticator object used for SoM authentication. Can be used to customize the VID/PID of the
+        USB device as well as the authentication URI used.
+    :param int timeout_seconds:
+        The maximum time the sensor gets for authentication before abortion
+    """
     def __init__(self, authenticator: DeviceAuthentication = None, timeout_seconds: int = 100):
         self._ready = False
         if authenticator is None:
@@ -33,6 +40,9 @@ class AzureEye(AzurePercept):
         self._ready = True
 
     def is_ready(self):
+        """
+        Returns True if the device is authenticated and prepared and ready to work. False otherwise
+        """
         return self._ready
 
     def _authenticate(self, authenticator, timeout_seconds):
@@ -50,6 +60,9 @@ class AzureEye(AzurePercept):
         sys.exit()
 
     def is_authenticated(self):
+        """
+        Returns True when the device attestation with the Azure Percept online service was successful and False otherwise
+        """
         dev = usb.core.find(idVendor=0x03e7, idProduct=0x2485)
         if dev is None:
             return False
@@ -97,6 +110,10 @@ class AzureEye(AzurePercept):
         """
         Loads a .onnx model file and converts it to a .blob file for the Intel Myriad VPU to use.
         Only 1D model outputs using 32 bit floats are supported as for now.
+        :param str filepath:
+            The full path to the onnx model file that should be converted
+        :param str output_dir:
+            The path to the output directory where the converted .blob file will be placed
         """
         tmp_model_name = str(uuid.uuid4())
         model_name = os.path.basename(filepath).split(".")[0]
@@ -110,7 +127,11 @@ class AzureEye(AzurePercept):
     def start_inference(self, blob_model_path=None):
         """
         Starts the Azure Eye camera and the inference on the VPU based on the .blob model file path
+        :param str blob_model_path:
+            The path to the .blob model that should be used for inference
         """
+        if blob_model_path is None:
+            raise Exception("blob_model_path must be set to a .blob file path")
         self._inference_running = True
         _azureeye.start_inference(blob_model_path)
         time.sleep(2)
@@ -150,6 +171,6 @@ class AzureEye(AzurePercept):
 
     def close(self):
         """
-        Call this when the AzureEye object is no longer needed to clean up
+        Cleans up resources. Call this when the AzureEye object is no longer used.
         """
         _azureeye.close_eye()

@@ -5,7 +5,7 @@ import io
 import sys
 import _hardware
 from abc import ABC
-
+import numpy as np
 
 class AzurePercept(ABC):
     def __init__(self, authenticator: DeviceAuthentication = None, timeout_seconds: int = 100):
@@ -24,6 +24,7 @@ class AzureEar(AzurePercept):
     def __init__(self, authenticator: DeviceAuthentication = None, timeout_seconds: int = 100):
         # super().__init__(authenticator, timeout_seconds)
         self.device_no = None
+        self._ready = False
         if authenticator is None:
             authenticator = DeviceAuthentication(0x045e, 0x0673)
         if self.is_authenticated() == False:
@@ -33,11 +34,18 @@ class AzureEar(AzurePercept):
         else:
             self.device_no = f"hw:{_hardware.get_azure_ear_hardware()},0"
             _hardware.prepare_ear(self.device_no)
+            self._ready = True
 
     def is_ready(self):
-        return self.is_authenticated()
+        """
+        Returns True if the device is authenticated and prepared and ready to work. False otherwise
+        """
+        return self._ready
 
     def is_authenticated(self):
+        """
+        Returns True when the device attestation with the Azure Percept online service was successful and False otherwise
+        """
         if _hardware.get_azure_ear_hardware() == -1:
             return False
         else:
@@ -56,6 +64,7 @@ class AzureEar(AzurePercept):
         else:
             self.device_no = f"hw:{_hardware.get_azure_ear_hardware()},0"
             _hardware.prepare_ear(self.device_no)
+            self._ready = True
         sys.exit()
 
     def start_recording(self, file):
@@ -67,11 +76,11 @@ class AzureEar(AzurePercept):
         """
         if self.is_ready() == False:
             raise Exception("Device must be authenticated before recording can start")
-        if isinstance(file, io.BufferedWriter):
+        # if isinstance(file, io.BufferedWriter):
+        #     _hardware.start_recording(file)
+        if isinstance(file, str):
+            # self.file = open(file, 'w+')
             _hardware.start_recording(file)
-        elif isinstance(file, str):
-            self.file = open(file, 'w+')
-            _hardware.start_recording(self.file)
         else:
             raise Exception("start_recording(filehandle) must be called with a file handle")
 
@@ -83,12 +92,21 @@ class AzureEar(AzurePercept):
 
     def get_raw_audio(self, frames_count=160):
         """
-        Returns <frames_count> audio frames from the device as a byte array representing PCM amplitude values.
-        The total number of bytes returned is bit depth (32 bit = 4 byte) * channels (5) * <frames_count>
+        Returns <frames_count> audio frames from the device as a numpy array representing PCM amplitude values.
+        The shape of the numpy array is (frame_count, 5) as there are 5 channels that are recorded.
+        The array represents the total number of bytes returned which is bit depth (32 bit = 4 byte) * channels (5) * <frames_count>
         :param int frames_count:
             Specifies the number of frames read and returned from the audio interface
         """
-        return _hardware.get_raw_audio(frames_count)
+        bytes = _hardware.get_raw_audio(frames_count)
+        arr = np.zeros((int(len(bytes)/20), 5))
+        for j in range(0, (int(len(bytes)/20))):
+            for k in range(0, 5):
+                arr[j][k] = int.from_bytes(bytes[k*4:(k*4)+4], byteorder=sys.byteorder, signed=True)
+        return arr
 
     def close(self):
+        """
+        Cleans up resources. Call this when the AzureEar object is no longer used.
+        """
         _hardware.close_ear()

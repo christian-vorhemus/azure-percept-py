@@ -14,7 +14,7 @@ unsigned int rate;
 unsigned int channels;
 char *hardware;
 snd_pcm_uframes_t frames;
-snd_pcm_t *capture_handle;
+snd_pcm_t *pcapture_handle;
 snd_pcm_hw_params_t *hw_params;
 struct timeval tval_before, tval_after, tval_result;
 bool isRecording = false;
@@ -37,8 +37,7 @@ struct WavHeader
 struct WavHeader *createWavHeader(uint32_t sample_rate, uint16_t bit_depth,
                                   uint16_t channels)
 {
-  struct WavHeader *hdr;
-  hdr = malloc(sizeof(*hdr));
+  struct WavHeader *hdr = malloc(sizeof(struct WavHeader));
   if (!hdr)
     return NULL;
 
@@ -90,23 +89,22 @@ void *record(void *args)
     fputc(0x00, out);
   }
   gettimeofday(&tval_before, NULL);
-  if (!capture_handle)
+  if (!pcapture_handle)
   {
-    fprintf(stderr, "Error: capture_handle is NULL\n");
-    return NULL;
+    fprintf(stderr, "Error: pcapture_handle is NULL\n");
+    exit(1);
   }
   while (isRecording)
   {
-    if ((err = snd_pcm_readi(capture_handle, buffer, buffer_frames)) !=
+    if ((err = snd_pcm_readi(pcapture_handle, buffer, buffer_frames)) !=
         buffer_frames)
     {
-      fprintf(stderr, "read from audio interface failed (%s)\n", snd_strerror(err));
-      exit(1);
+      fprintf(stderr, "Read from audio interface failed (%s)\n", snd_strerror(err));
     }
 
     fwrite(buffer, 1, buffer_frames * snd_pcm_format_width(format) / 8 * channels, out);
   }
-  return NULL;
+  free(buffer);
 }
 
 static PyObject *method_getraw(PyObject *self, PyObject *args)
@@ -124,7 +122,7 @@ static PyObject *method_getraw(PyObject *self, PyObject *args)
   buffer = (char *)malloc(buffer_frames * snd_pcm_format_width(format) / 8 * channels);
   while (total < size)
   {
-    ret = snd_pcm_readi(capture_handle, buffer, buffer_frames);
+    ret = snd_pcm_readi(pcapture_handle, buffer, buffer_frames);
     if (total + ret > size)
     {
       break;
@@ -157,26 +155,33 @@ static PyObject *method_getraw(PyObject *self, PyObject *args)
 static PyObject *method_startrecording(PyObject *self, PyObject *args)
 {
 
-  PyObject *f, *fileno_fn, *fileno_obj, *fileno_args;
-  if (!PyArg_ParseTuple(args, "O", &f))
+  // PyObject *f, *fileno_fn, *fileno_obj, *fileno_args;
+  // if (!PyArg_ParseTuple(args, "O", &f))
+  // {
+  //   return NULL;
+  // }
+
+  // if (!(fileno_fn = PyObject_GetAttrString(f, "fileno")))
+  // {
+  //   PyErr_SetString(PyExc_TypeError, "Object has no fileno function.");
+  //   return NULL;
+  // }
+  // fileno_args = PyTuple_New(0);
+  // if (!(fileno_obj = PyObject_CallObject(fileno_fn, fileno_args)))
+  // {
+  //   PyErr_SetString(PyExc_SystemError, "Error calling fileno function.");
+  //   return NULL;
+  // }
+  // int fd = PyLong_AsSize_t(fileno_obj);
+
+  // out = fdopen(fd, "wb");
+  char *fname;
+  if (!PyArg_ParseTuple(args, "s", &fname))
   {
     return NULL;
   }
 
-  if (!(fileno_fn = PyObject_GetAttrString(f, "fileno")))
-  {
-    PyErr_SetString(PyExc_TypeError, "Object has no fileno function.");
-    return NULL;
-  }
-  fileno_args = PyTuple_New(0);
-  if (!(fileno_obj = PyObject_CallObject(fileno_fn, fileno_args)))
-  {
-    PyErr_SetString(PyExc_SystemError, "Error calling fileno function.");
-    return NULL;
-  }
-  int fd = PyLong_AsSize_t(fileno_obj);
-
-  out = fdopen(fd, "wb");
+  out = fopen(fname, "wb");
 
   pthread_t tid;
   pthread_create(&tid, NULL, record, NULL);
@@ -199,7 +204,7 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
   frames = 32;
   format = SND_PCM_FORMAT_S32_LE;
 
-  if ((err = snd_pcm_open(&capture_handle, hardware, SND_PCM_STREAM_CAPTURE,
+  if ((err = snd_pcm_open(&pcapture_handle, hardware, SND_PCM_STREAM_CAPTURE,
                           0)) < 0)
   {
     fprintf(stderr, "cannot open audio device %s (%s)\n", hardware,
@@ -218,7 +223,7 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
 
   // fprintf(stdout, "hw_params allocated\n");
 
-  if ((err = snd_pcm_hw_params_any(capture_handle, hw_params)) < 0)
+  if ((err = snd_pcm_hw_params_any(pcapture_handle, hw_params)) < 0)
   {
     fprintf(stderr, "cannot initialize hardware parameter structure (%s)\n",
             snd_strerror(err));
@@ -227,7 +232,7 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
 
   // fprintf(stdout, "hw_params initialized\n");
 
-  if ((err = snd_pcm_hw_params_set_access(capture_handle, hw_params,
+  if ((err = snd_pcm_hw_params_set_access(pcapture_handle, hw_params,
                                           SND_PCM_ACCESS_RW_INTERLEAVED)) < 0)
   {
     fprintf(stderr, "cannot set access type (%s)\n", snd_strerror(err));
@@ -236,7 +241,7 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
 
   // fprintf(stdout, "hw_params access setted\n");
 
-  if ((err = snd_pcm_hw_params_set_format(capture_handle, hw_params, format)) <
+  if ((err = snd_pcm_hw_params_set_format(pcapture_handle, hw_params, format)) <
       0)
   {
     fprintf(stderr, "cannot set sample format (%s)\n", snd_strerror(err));
@@ -245,7 +250,7 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
 
   // fprintf(stdout, "hw_params format setted\n");
 
-  if ((err = snd_pcm_hw_params_set_rate_near(capture_handle, hw_params, &rate,
+  if ((err = snd_pcm_hw_params_set_rate_near(pcapture_handle, hw_params, &rate,
                                              0)) < 0)
   {
     fprintf(stderr, "cannot set sample rate (%s)\n", snd_strerror(err));
@@ -254,7 +259,7 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
 
   // fprintf(stdout, "hw_params rate setted\n");
 
-  if ((err = snd_pcm_hw_params_set_channels(capture_handle, hw_params, channels)) <
+  if ((err = snd_pcm_hw_params_set_channels(pcapture_handle, hw_params, channels)) <
       0)
   {
     fprintf(stderr, "cannot set channel count (%s)\n", snd_strerror(err));
@@ -263,7 +268,7 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
 
   // fprintf(stdout, "hw_params channels setted\n");
 
-  if ((err = snd_pcm_hw_params(capture_handle, hw_params)) < 0)
+  if ((err = snd_pcm_hw_params(pcapture_handle, hw_params)) < 0)
   {
     fprintf(stderr, "cannot set parameters (%s)\n", snd_strerror(err));
     exit(1);
@@ -275,7 +280,7 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
 
   // fprintf(stdout, "hw_params freed\n");
 
-  if ((err = snd_pcm_prepare(capture_handle)) < 0)
+  if ((err = snd_pcm_prepare(pcapture_handle)) < 0)
   {
     fprintf(stderr, "cannot prepare audio interface for use (%s)\n",
             snd_strerror(err));
@@ -289,8 +294,7 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
 
 static PyObject *method_closeear(PyObject *self, PyObject *args)
 {
-  snd_pcm_close(capture_handle);
-  free(buffer);
+  snd_pcm_close(pcapture_handle);
   return Py_BuildValue("");
 }
 
@@ -300,16 +304,15 @@ static PyObject *method_stoprecording(PyObject *self, PyObject *args)
   gettimeofday(&tval_after, NULL);
   timersub(&tval_after, &tval_before, &tval_result);
   rewind(out);
-  struct WavHeader *hdr;
-  hdr = createWavHeader(rate, frames, channels);
+  struct WavHeader *hdr = createWavHeader(rate, frames, channels);
   uint32_t pcm_data_size =
       hdr->sample_rate * hdr->bytes_per_frame * tval_result.tv_sec;
   hdr->file_size = pcm_data_size + 44 - 8;
   writeWAVHeader(out, hdr);
+  free(hdr);
   fclose(out);
-  free(buffer);
   // fprintf(stdout, "buffer freed\n");
-  // snd_pcm_close(capture_handle);
+  // snd_pcm_close(pcapture_handle);
   // fprintf(stdout, "audio interface closed\n");
   return Py_BuildValue("");
 }
@@ -370,7 +373,7 @@ static PyMethodDef HardwareMethods[] = {
 static struct PyModuleDef _hardwaremodule = {
     PyModuleDef_HEAD_INIT,
     "_hardware",
-    "Python interface for the fputs C library function",
+    "Python interface for the Azure Ear device",
     -1,
     HardwareMethods};
 
