@@ -9,7 +9,7 @@ Make sure the following is installed on your Percept device or the container you
 - libalsa and corresponding header files (run `sudo yum install alsa-lib-devel`)
 - pyusb (run `sudo yum install libusb-devel`)
 - pthreads (libpthread should be available on most OS by default, check your library path - for example /usr/lib/ - to be sure)
-- Optional: Install pip in case you need additional Python packages: `sudo yum install pip3`
+- Install pip: `sudo yum install pip3`
 
 ## Install
 The following guide assumes you run the code directly on the Percept board (CBL Mariner OS). You can also create a docker image and install the Python module there, in that case make sure that you mount the host's /dev/bus/usb into the image.
