@@ -94,17 +94,30 @@ void *record(void *args)
     fprintf(stderr, "Error: pcapture_handle is NULL\n");
     exit(1);
   }
-  while (isRecording)
+  while (true)
   {
+    if (!isRecording)
+    {
+      free(buffer);
+      gettimeofday(&tval_after, NULL);
+      timersub(&tval_after, &tval_before, &tval_result);
+      rewind(out);
+      struct WavHeader *hdr = createWavHeader(rate, frames, channels);
+      uint32_t pcm_data_size =
+          hdr->sample_rate * hdr->bytes_per_frame * tval_result.tv_sec;
+      hdr->file_size = pcm_data_size + 44 - 8;
+      writeWAVHeader(out, hdr);
+      free(hdr);
+      fclose(out);
+      break;
+    }
     if ((err = snd_pcm_readi(pcapture_handle, buffer, buffer_frames)) !=
         buffer_frames)
     {
-      fprintf(stderr, "Read from audio interface failed (%s)\n", snd_strerror(err));
+      //fprintf(stderr, "Read from audio interface failed (%s)\n", snd_strerror(err));
     }
-
-    fwrite(buffer, 1, buffer_frames * snd_pcm_format_width(format) / 8 * channels, out);
+    fwrite(buffer, sizeof(char), buffer_frames * snd_pcm_format_width(format) / 8 * channels, out);
   }
-  free(buffer);
 }
 
 static PyObject *method_getraw(PyObject *self, PyObject *args)
@@ -301,16 +314,6 @@ static PyObject *method_closeear(PyObject *self, PyObject *args)
 static PyObject *method_stoprecording(PyObject *self, PyObject *args)
 {
   isRecording = false;
-  gettimeofday(&tval_after, NULL);
-  timersub(&tval_after, &tval_before, &tval_result);
-  rewind(out);
-  struct WavHeader *hdr = createWavHeader(rate, frames, channels);
-  uint32_t pcm_data_size =
-      hdr->sample_rate * hdr->bytes_per_frame * tval_result.tv_sec;
-  hdr->file_size = pcm_data_size + 44 - 8;
-  writeWAVHeader(out, hdr);
-  free(hdr);
-  fclose(out);
   // fprintf(stdout, "buffer freed\n");
   // snd_pcm_close(pcapture_handle);
   // fprintf(stdout, "audio interface closed\n");
