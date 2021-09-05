@@ -98,17 +98,6 @@ void *record(void *args)
   {
     if (!isRecording)
     {
-      free(buffer);
-      gettimeofday(&tval_after, NULL);
-      timersub(&tval_after, &tval_before, &tval_result);
-      rewind(out);
-      struct WavHeader *hdr = createWavHeader(rate, frames, channels);
-      uint32_t pcm_data_size =
-          hdr->sample_rate * hdr->bytes_per_frame * tval_result.tv_sec;
-      hdr->file_size = pcm_data_size + 44 - 8;
-      writeWAVHeader(out, hdr);
-      free(hdr);
-      fclose(out);
       break;
     }
     if ((err = snd_pcm_readi(pcapture_handle, buffer, buffer_frames)) !=
@@ -118,6 +107,17 @@ void *record(void *args)
     }
     fwrite(buffer, sizeof(char), buffer_frames * snd_pcm_format_width(format) / 8 * channels, out);
   }
+  free(buffer);
+  gettimeofday(&tval_after, NULL);
+  timersub(&tval_after, &tval_before, &tval_result);
+  rewind(out);
+  struct WavHeader *hdr = createWavHeader(rate, frames, channels);
+  uint32_t pcm_data_size =
+      hdr->sample_rate * hdr->bytes_per_frame * tval_result.tv_sec;
+  hdr->file_size = pcm_data_size + 44 - 8;
+  writeWAVHeader(out, hdr);
+  free(hdr);
+  fclose(out);
 }
 
 static PyObject *method_getraw(PyObject *self, PyObject *args)
@@ -130,21 +130,27 @@ static PyObject *method_getraw(PyObject *self, PyObject *args)
   {
     return NULL;
   }
-
+  int framesize = 1600;
   char *tot = (char *)malloc(size * snd_pcm_format_width(format) / 8 * channels);
-  buffer = (char *)malloc(buffer_frames * snd_pcm_format_width(format) / 8 * channels);
+  buffer = (char *)malloc(framesize * snd_pcm_format_width(format) / 8 * channels);
   while (total < size)
   {
-    ret = snd_pcm_readi(pcapture_handle, buffer, buffer_frames);
+    ret = snd_pcm_readi(pcapture_handle, buffer, framesize);
     if (total + ret > size)
     {
       break;
     }
-    // fprintf(stdout, "Ret value: %i\n", ret);
     if (ret < 0)
     {
-      fprintf(stderr, "Error: Ret value: %i\n", ret);
-      exit(1);
+      if (ret == -32)
+      {
+        snd_pcm_recover(pcapture_handle, ret, 1);
+      }
+      else
+      {
+        fprintf(stderr, "Error: Ret value: %i\n", ret);
+        exit(1);
+      }
     }
     else
     {

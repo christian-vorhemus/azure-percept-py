@@ -15,6 +15,7 @@ import _azureeye
 import numpy as np
 # from .mo import main as mo
 
+
 class AzureEye(AzurePercept):
     """The AzureEye class initiates the Azure Eye device. It can be used to get camera data or run model inference jobs
     :param DeviceAuthentication authenticator:
@@ -23,6 +24,7 @@ class AzureEye(AzurePercept):
     :param int timeout_seconds:
         The maximum time the sensor gets for authentication before abortion
     """
+
     def __init__(self, authenticator: DeviceAuthentication = None, timeout_seconds: int = 100):
         self._ready = False
         if authenticator is None:
@@ -75,7 +77,6 @@ class AzureEye(AzurePercept):
         :param str file: 
             A string that specifies the path to a new file to be created
         """
-        raise Exception("Not implemented as for now")
         if self.is_ready() == False:
             raise Exception("Device must be ready before recording can start")
         if isinstance(file, str):
@@ -87,7 +88,6 @@ class AzureEye(AzurePercept):
         """
         Stops the video recording and closes the MP4 file.
         """
-        raise Exception("Not implemented as for now")
         _azureeye.stop_recording()
 
     def get_frame(self):
@@ -124,12 +124,14 @@ class AzureEye(AzurePercept):
         assets_path = str(path.join(path.dirname(__file__), 'assets'))
         subprocess.check_call(f"{assets_path}/myriad_compile -m /tmp/{tmp_model_name}.xml -o {path.join(output_dir, model_name)}.blob -VPU_NUMBER_OF_SHAVES 8 -VPU_NUMBER_OF_CMX_SLICES 8 -ip U8 -op FP32", shell=True)
 
-    def start_inference(self, blob_model_path=None):
+    def start_inference(self, blob_model_path=None, device=None):
         """
         Starts the Azure Eye camera and the inference on the VPU based on the .blob model file path
         :param str blob_model_path:
             The path to the .blob model that should be used for inference
         """
+        if self.is_ready() == False:
+            raise Exception("Device must be ready before inference can start")
         if blob_model_path is None:
             raise Exception("blob_model_path must be set to a .blob file path")
         self._inference_running = True

@@ -90,7 +90,7 @@ class AzureEar(AzurePercept):
         """
         _hardware.stop_recording()
 
-    def get_raw_audio(self, frames_count=160):
+    def get_raw_audio(self, frames_count=1600):
         """
         Returns <frames_count> audio frames from the device as a numpy array representing PCM amplitude values.
         The shape of the numpy array is (frame_count, 5) as there are 5 channels that are recorded.
