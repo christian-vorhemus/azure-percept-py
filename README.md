@@ -20,8 +20,8 @@ The following guide assumes you run the code directly on the Percept board (CBL 
 
 Note that the package includes pre-built libraries that will only run on an aarch64 architecture!
 
-## Azure Ear sample
-The following sample authenticates the Azure Ear sensor, records audio for 5 seconds and saves the result locally as a WAV file. Create a new file `earsample.py` with the following content
+## Azure Percept Audio sample
+The following sample authenticates the Azure Percept Audio sensor, records audio for 5 seconds and saves the result locally as a WAV file. Create a new file `earsample.py` with the following content
 
 ```python
 from azure.iot.percept import AzureEar
@@ -48,7 +48,7 @@ ear.close()
 
 Run `sudo python3 earsample.py` to run the script.
 
-## Azure Eye samples
+## Azure Percept Vision samples
 ### Run a machine learning model on the VPU
 The following sample shows how you can run a model on the Azure Eye Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [Mobilenet](https://github.com/onnx/models/raw/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx). Create a new file `eyesample.py` with the following content
 
@@ -78,10 +78,10 @@ eye.stop_inference()
 eye.close()
 ```
 
-Run `sudo python3 eyesample.py` to run the script. Especially the model conversion can take several minutes. `eye.start_inference(model)` will start the Azure Eye Camera and those images are used as an input for `model`. Then `eye.get_inference()` is used to get prediction results as numpy vectors from the device.
+Run `sudo python3 eyesample.py` to run the script. Especially the model conversion can take several minutes. `eye.start_inference(model)` will start the Azure Percept Vision Camera and those images are used as an input for `model`. Then `eye.get_inference()` is used to get prediction results as numpy vectors from the device.
 
 ### Take a picture and save it locally
-The following sample gets an image (as a numpy array) from the Azure Eye device in BGR format with shape (height, width, channels) and saves it as a JPG file (you need Pillow for this sample to work: `pip3 install Pillow`)
+The following sample gets an image (as a numpy array) from the Azure Percept Vision device in BGR format with shape (height, width, channels) and saves it as a JPG file (you need Pillow for this sample to work: `pip3 install Pillow`)
 
 ```python
 from azure.iot.percept import AzureEye
