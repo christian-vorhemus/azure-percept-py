@@ -16,8 +16,8 @@ import numpy as np
 # from .mo import main as mo
 
 
-class AzureEye(AzurePercept):
-    """The AzureEye class initiates the Azure Eye device. It can be used to get camera data or run model inference jobs
+class VisionDevice(AzurePercept):
+    """The VisionDevice class initiates the Azure Eye device. It can be used to get camera data or run model inference jobs
     :param DeviceAuthentication authenticator:
         The authenticator object used for SoM authentication. Can be used to customize the VID/PID of the
         USB device as well as the authentication URI used.

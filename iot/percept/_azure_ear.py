@@ -12,8 +12,8 @@ class AzurePercept(ABC):
         pass
 
 
-class AzureEar(AzurePercept):
-    """The AzureEar class can be used to record audio from the microphone array and save it as WAV file
+class AudioDevice(AzurePercept):
+    """The AudioDevice class can be used to record audio from the microphone array and save it as WAV file
     :param DeviceAuthentication authenticator:
         The authenticator object used for SoM authentication. Can be used to customize the VID/PID of the
         USB device as well as the authentication URI used.
