@@ -465,7 +465,7 @@ static PyObject *method_prepareeye(PyObject *self, PyObject *args)
 
 static PyObject *method_closedevice(PyObject *self, PyObject *args)
 {
-  sleep(2);
+  sleep(1);
   mxIf::Reset();
   free(out_file);
   return Py_BuildValue("");
@@ -501,14 +501,14 @@ static PyObject *method_getframe(PyObject *self, PyObject *args)
 
   // printf("BGR: size=%d; seqNo=%ld; ts=%ld\n", bgr_hndl.bufSize, bgr_hndl.seqNo, bgr_hndl.ts);
   uint32_t size = bgr_hndl.bufSize;
-  // FILE *tmp;
-  // tmp = fopen("/home/admin/testimage.rawbytes", "wb");
-  // fwrite(pBuf, sizeof(uint8_t), bgr_hndl.bufSize, tmp);
-  // fclose(tmp);
-
   camera_block.ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
 
-  return Py_BuildValue("(y#ii)", pBuf, size, width, height);
+  npy_intp dims[3] = {3, height, width};
+  PyObject *res = PyArray_SimpleNew(3, dims, NPY_UINT8);
+  memcpy(PyArray_DATA(res), pBuf, size);
+  return res;
+
+  // return Py_BuildValue("(y#ii)", pBuf, size, width, height);
 }
 
 static PyObject *method_startinference(PyObject *self, PyObject *args)
@@ -549,5 +549,6 @@ static struct PyModuleDef _azureeyemodule = {
 
 PyMODINIT_FUNC PyInit__azureeye(void)
 {
+  import_array();
   return PyModule_Create(&_azureeyemodule);
 }

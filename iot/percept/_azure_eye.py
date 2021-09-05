@@ -94,15 +94,16 @@ class AzureEye(AzurePercept):
         """
         This captures an image using the camera with a numpy array as return type (BGR format - height, width, channels)
         """
-        bytes, width, height = _azureeye.get_frame()
-        img = np.zeros((3, height, width))
-        m = 0
-        for i in range(0, 3):
-            for j in range(0, height):
-                for k in range(0, width):
-                    img[i][j][k] = bytes[m]
-                    m += 1
-        im = np.uint8(img)
+        # bytes, width, height = _azureeye.get_frame()
+        # img = np.zeros((3, height, width))
+        # m = 0
+        # for i in range(0, 3):
+        #     for j in range(0, height):
+        #         for k in range(0, width):
+        #             img[i][j][k] = bytes[m]
+        #             m += 1
+        im = _azureeye.get_frame()
+        # im = np.uint8(img)
         im = np.moveaxis(im, 0, -1)
         return im
 
