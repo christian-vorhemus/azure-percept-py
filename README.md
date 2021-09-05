@@ -24,14 +24,14 @@ Note that the package includes pre-built libraries that will only run on an aarc
 The following sample authenticates the Azure Percept Audio sensor, records audio for 5 seconds and saves the result locally as a WAV file. Create a new file `perceptaudio.py` with the following content
 
 ```python
-from azure.iot.percept import AzureEar
+from azure.iot.percept import AudioDevice
 import time
 
-ear = AzureEar()
+audio = AudioDevice()
 
 print("Authenticating sensor...")
 while True:
-    if ear.is_ready() is True:
+    if audio.is_ready() is True:
         break
     else:
         time.sleep(1)
@@ -39,29 +39,29 @@ while True:
 print("Authentication successful!")
 
 print("Recording...")
-ear.start_recording("./sample.wav")
+audio.start_recording("./sample.wav")
 time.sleep(5)
-ear.stop_recording()
+audio.stop_recording()
 print("Recording stopped")
-ear.close()
+audio.close()
 ```
 
 Run `sudo python3 perceptaudio.py` to run the script.
 
 ## Azure Percept Vision samples
 ### Run a machine learning model on the VPU
-The following sample shows how you can run a model on the Azure Eye Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [Mobilenet](https://github.com/onnx/models/raw/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx). Create a new file `perceptvision.py` with the following content
+The following sample shows how you can run a model on the Azure Vision Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [Mobilenet](https://github.com/onnx/models/raw/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx). Create a new file `perceptvision.py` with the following content
 
 ```python
-from azure.iot.percept import AzureEye
+from azure.iot.percept import VisionDevice
 import time
 import numpy
 
-eye = AzureEye()
+vision = VisionDevice()
 
 print("Authenticating sensor...")
 while True:
-    if eye.is_ready() is True:
+    if vision.is_ready() is True:
         break
     else:
         time.sleep(1)
@@ -70,54 +70,54 @@ print("Authentication successful!")
 
 # this will convert a ONNX model to a model file with the same name 
 # and a .blob suffix to the output directory "/path/to"
-eye.convert_model("/path/to/mobilenetv2-7.onnx", "/path/to") 
-eye.start_inference("/path/to/mobilenetv2-7.blob")
-arr = eye.get_inference() # arr is a numpy array that contains the model output
+vision.convert_model("/path/to/mobilenetv2-7.onnx", "/path/to") 
+vision.start_inference("/path/to/mobilenetv2-7.blob")
+arr = vision.get_inference() # arr is a numpy array that contains the model output
 print(arr.shape)
-eye.stop_inference()
-eye.close()
+vision.stop_inference()
+vision.close()
 ```
 
-Run `sudo python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `eye.start_inference(model)` will start the Azure Percept Vision Camera and those images are used as an input for `model`. Then `eye.get_inference()` is used to get prediction results as numpy vectors from the device.
+Run `sudo python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `vision.start_inference(model)` will start the Azure Percept Vision Camera and those images are used as an input for `model`. Then `vision.get_inference()` is used to get prediction results as numpy vectors from the device.
 
 ### Take a picture and save it locally
 The following sample gets an image (as a numpy array) from the Azure Percept Vision device in BGR format with shape (height, width, channels) and saves it as a JPG file (you need Pillow for this sample to work: `pip3 install Pillow`)
 
 ```python
-from azure.iot.percept import AzureEye
+from azure.iot.percept import VisionDevice
 import time
 import numpy
 from PIL import Image
 
-eye = AzureEye()
+vision = VisionDevice()
 
 print("Authenticating sensor...")
 while True:
-    if eye.is_ready() is True:
+    if vision.is_ready() is True:
         break
     else:
         time.sleep(1)
 
 print("Authentication successful!")
 
-img = eye.get_frame() # get a camera frame from the Azure Eye device
+img = vision.get_frame() # get a camera frame from the Azure Vision device
 img = img[...,::-1].copy() # copy the BGR image as RGB
 pil_img = Image.fromarray(img) # convert the numpy array to a Pillow image
 pil_img.save("frame.jpg")
-eye.close()
+vision.close()
 ```
 ### Record a video
 The following sample records a video for 5 seconds and saves it locally as a MP4 file.
 
 ```python
-from azure.iot.percept import AzureEye
+from azure.iot.percept import VisionDevice
 import time
 
-eye = AzureEye()
+vision = VisionDevice()
 
 print("Authenticating sensor...")
 while True:
-    if eye.is_ready() is True:
+    if vision.is_ready() is True:
         break
     else:
         time.sleep(1)
@@ -125,9 +125,9 @@ while True:
 print("Authentication successful!")
 
 print("Recording...")
-eye.start_recording("./sample.mp4")
+vision.start_recording("./sample.mp4")
 time.sleep(5)
-eye.stop_recording()
+vision.stop_recording()
 print("Recording stopped")
-eye.close()
+vision.close()
 ```
