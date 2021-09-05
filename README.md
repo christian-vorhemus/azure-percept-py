@@ -48,7 +48,8 @@ ear.close()
 
 Run `sudo python3 earsample.py` to run the script.
 
-## Azure Eye sample
+## Azure Eye samples
+### Run a machine learning model on the VPU
 The following sample shows how you can run a model on the Azure Eye Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [Mobilenet](https://github.com/onnx/models/raw/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx). Create a new file `eyesample.py` with the following content
 
 ```python
@@ -79,6 +80,7 @@ eye.close()
 
 Run `sudo python3 eyesample.py` to run the script. Especially the model conversion can take several minutes. `eye.start_inference(model)` will start the Azure Eye Camera and those images are used as an input for `model`. Then `eye.get_inference()` is used to get prediction results as numpy vectors from the device.
 
+### Take a picture and save it locally
 The following sample gets an image (as a numpy array) from the Azure Eye device in BGR format with shape (height, width, channels) and saves it as a JPG file (you need Pillow for this sample to work: `pip3 install Pillow`)
 
 ```python
@@ -104,4 +106,28 @@ pil_img = Image.fromarray(img) # convert the numpy array to a Pillow image
 pil_img.save("frame.jpg")
 eye.close()
 ```
+### Record a video
+The following sample records a video for 5 seconds and saves it locally as a MP4 file.
 
+```python
+from azure.iot.percept import AzureEye
+import time
+
+eye = AzureEye()
+
+print("Authenticating sensor...")
+while True:
+    if eye.is_ready() is True:
+        break
+    else:
+        time.sleep(1)
+
+print("Authentication successful!")
+
+print("Recording...")
+eye.start_recording("./sample.mp4")
+time.sleep(5)
+eye.stop_recording()
+print("Recording stopped")
+eye.close()
+```
