@@ -100,7 +100,7 @@ while True:
 
 print("Authentication successful!")
 
-img = eye.get_frame() # get a camera frame from the Azure Eye device; can take several seconds
+img = eye.get_frame() # get a camera frame from the Azure Eye device
 img = img[...,::-1].copy() # copy the BGR image as RGB
 pil_img = Image.fromarray(img) # convert the numpy array to a Pillow image
 pil_img.save("frame.jpg")
