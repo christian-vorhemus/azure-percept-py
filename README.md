@@ -86,7 +86,7 @@ The following sample gets an image (as a numpy array) from the Azure Percept Vis
 ```python
 from azure.iot.percept import VisionDevice
 import time
-import numpy
+import numpy as np
 from PIL import Image
 
 vision = VisionDevice()
@@ -101,6 +101,7 @@ while True:
 print("Authentication successful!")
 
 img = vision.get_frame() # get a camera frame from the Azure Vision device
+img = np.moveaxis(img, 0, -1) # move the channel dimension back
 img = img[...,::-1].copy() # copy the BGR image as RGB
 pil_img = Image.fromarray(img) # convert the numpy array to a Pillow image
 pil_img.save("frame.jpg")
