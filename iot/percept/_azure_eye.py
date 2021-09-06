@@ -131,6 +131,8 @@ class VisionDevice(AzurePercept):
         Starts the Azure Eye camera and the inference on the VPU based on the .blob model file path
         :param str blob_model_path:
             The path to the .blob model that should be used for inference
+        :param str device:
+            The camera device that should be used. Currently not implemented
         """
         if self.is_ready() == False:
             raise Exception("Device must be ready before inference can start")
@@ -147,31 +149,41 @@ class VisionDevice(AzurePercept):
         self._inference_running = False
         _azureeye.stop_inference()
 
-    def get_inference(self):
+    def get_inference(self, return_image=False):
         """
         Returns the model inference output as a numpy array. The array length depends on the model specification.
+        :param bool return_image:
+            If return_image is True, the image from the camera which was used for model inference is returned as well
         """
         if self._inference_running is False:
             raise Exception(f"Inference not started. Call <AzureyeObject>.start_inference('/path/to/model.blob') first")
 
-        res, res_type = _azureeye.get_inference()
+        if return_image is False:
+            res, res_type = _azureeye.get_inference(return_image)
+        else:
+            res, res_type, img = _azureeye.get_inference(return_image)
         if res_type == 0:
             le = int(len(res) / 2)
-            return np.frombuffer(res, dtype='float16', count=le, offset=0)
+            ret = np.frombuffer(res, dtype='float16', count=le, offset=0)
         elif res_type == 1:
             le = int(len(res))
-            return np.frombuffer(res, dtype='uint8', count=le, offset=0)
+            ret = np.frombuffer(res, dtype='uint8', count=le, offset=0)
         elif res_type == 2:
             le = int(len(res) / 4)
-            return np.frombuffer(res, dtype='int32', count=le, offset=0)
+            ret = np.frombuffer(res, dtype='int32', count=le, offset=0)
         elif res_type == 3:
             le = int(len(res) / 4)
-            return np.frombuffer(res, dtype='float32', count=le, offset=0)
+            ret = np.frombuffer(res, dtype='float32', count=le, offset=0)
         elif res_type == 4:
             le = int(len(res))
-            return np.frombuffer(res, dtype='int8', count=le, offset=0)
+            ret = np.frombuffer(res, dtype='int8', count=le, offset=0)
         else:
             raise Exception(f"Unknown datatype received on return: {res_type}")
+
+        if return_image is False:
+            return ret
+        else:
+            return (ret, np.ascontiguousarray(np.moveaxis(img, 0, -1), dtype=np.uint8))
 
     def close(self):
         """

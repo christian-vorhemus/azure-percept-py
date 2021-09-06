@@ -49,6 +49,10 @@ bool isConverting = false;
 uint8_t *inferenceOutput;
 unsigned int inferenceSize;
 uint32_t inferenceType;
+int currentWidth;
+int currentHeight;
+uint8_t *currentImage;
+unsigned int currentSize;
 
 float bytesToFloat16(uint8_t *bytes)
 {
@@ -360,6 +364,12 @@ void *pullThread(void *par)
       mxIf::MemoryHandle bgr_hndl = camera_block.GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
       std::map<std::string, mxIf::InferIn> inferIn;
       auto info = infer_block.get_info();
+      currentWidth = bgr_hndl.width;
+      currentHeight = bgr_hndl.height;
+      currentImage = (uint8_t *)malloc(bgr_hndl.bufSize);
+      currentSize = bgr_hndl.bufSize;
+      assert(nullptr != currentImage);
+      bgr_hndl.TransferTo(currentImage);
       mxIf::InferIn inferReq = {bgr_hndl, mxIf::PREPROCESS_ROI{0, 0, bgr_hndl.width, bgr_hndl.height}};
       for (const auto &input_name : info.first)
       {
@@ -400,6 +410,7 @@ void *pullThread(void *par)
       //   camera_block.ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl_2);
       // }
       // pthread_join(threadNn, NULL);
+      free(currentImage);
       camera_block.ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
     }
 
@@ -483,7 +494,22 @@ static PyObject *method_stopinference(PyObject *self, PyObject *args)
 
 static PyObject *method_getinference(PyObject *self, PyObject *args)
 {
-  return Py_BuildValue("(y#i)", inferenceOutput, inferenceSize, inferenceType);
+  int returnImage;
+  if (!PyArg_ParseTuple(args, "i", &returnImage))
+  {
+    return NULL;
+  }
+  if (returnImage == 1)
+  {
+    npy_intp dims[3] = {3, currentHeight, currentWidth};
+    PyObject *res = PyArray_SimpleNew(3, dims, NPY_UINT8);
+    memcpy(PyArray_DATA(res), currentImage, currentSize);
+    return Py_BuildValue("(y#iO)", inferenceOutput, inferenceSize, inferenceType, res);
+  }
+  else
+  {
+    return Py_BuildValue("(y#i)", inferenceOutput, inferenceSize, inferenceType);
+  }
 }
 
 static PyObject *method_getframe(PyObject *self, PyObject *args)
