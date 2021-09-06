@@ -104,6 +104,8 @@ class VisionDevice(AzurePercept):
         #             m += 1
         im = _azureeye.get_frame()
         # im = np.uint8(img)
+        im = np.moveaxis(im, 0, -1)
+        im = np.ascontiguousarray(im, dtype=np.uint8)
         return im
 
     def convert_model(self, filepath, output_dir="./"):
