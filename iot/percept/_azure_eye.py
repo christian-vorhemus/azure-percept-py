@@ -27,6 +27,8 @@ class VisionDevice(AzurePercept):
 
     def __init__(self, authenticator: DeviceAuthentication = None, timeout_seconds: int = 100):
         self._ready = False
+        self._is_recording = False
+        self._inference_running = False
         if authenticator is None:
             authenticator = DeviceAuthentication(0x045e, 0x066F)
         if self.is_authenticated() == False:
@@ -73,13 +75,16 @@ class VisionDevice(AzurePercept):
 
     def start_recording(self, file):
         """
-        Starts the video recording as an MP4 file.
+        Starts the video recording as a MP4 file.
         :param str file: 
             A string that specifies the path to a new file to be created
         """
+        if self._is_recording is True:
+            raise Exception("Already recording. Run stop_recording() first")
         if self.is_ready() == False:
             raise Exception("Device must be ready before recording can start")
         if isinstance(file, str):
+            self._is_recording = True
             _azureeye.start_recording(file)
         else:
             raise Exception("start_recording(filepath) must be called with a string")
@@ -89,21 +94,13 @@ class VisionDevice(AzurePercept):
         Stops the video recording and closes the MP4 file.
         """
         _azureeye.stop_recording()
+        self._is_recording = False
 
     def get_frame(self):
         """
         This captures an image using the camera with a numpy array as return type (BGR format - height, width, channels)
         """
-        # bytes, width, height = _azureeye.get_frame()
-        # img = np.zeros((3, height, width))
-        # m = 0
-        # for i in range(0, 3):
-        #     for j in range(0, height):
-        #         for k in range(0, width):
-        #             img[i][j][k] = bytes[m]
-        #             m += 1
         im = _azureeye.get_frame()
-        # im = np.uint8(img)
         im = np.moveaxis(im, 0, -1)
         im = np.ascontiguousarray(im, dtype=np.uint8)
         return im
@@ -134,6 +131,8 @@ class VisionDevice(AzurePercept):
         :param str device:
             The camera device that should be used. Currently not implemented
         """
+        if self._inference_running is True:
+            raise Exception("Inference already running. Call stop_inference() first")
         if self.is_ready() == False:
             raise Exception("Device must be ready before inference can start")
         if blob_model_path is None:
@@ -162,6 +161,7 @@ class VisionDevice(AzurePercept):
             res, res_type = _azureeye.get_inference(return_image)
         else:
             res, res_type, img = _azureeye.get_inference(return_image)
+
         if res_type == 0:
             le = int(len(res) / 2)
             ret = np.frombuffer(res, dtype='float16', count=le, offset=0)
@@ -189,4 +189,5 @@ class VisionDevice(AzurePercept):
         """
         Cleans up resources. Call this when the AzureEye object is no longer used.
         """
+        time.sleep(1)
         _azureeye.close_eye()

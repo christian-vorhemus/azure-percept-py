@@ -118,6 +118,7 @@ void *record(void *args)
   writeWAVHeader(out, hdr);
   free(hdr);
   fclose(out);
+  return 0;
 }
 
 static PyObject *method_getraw(PyObject *self, PyObject *args)

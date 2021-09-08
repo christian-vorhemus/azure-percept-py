@@ -25,6 +25,7 @@ class AudioDevice(AzurePercept):
         # super().__init__(authenticator, timeout_seconds)
         self.device_no = None
         self._ready = False
+        self._is_recording = False
         if authenticator is None:
             authenticator = DeviceAuthentication(0x045e, 0x0673)
         if self.is_authenticated() == False:
@@ -74,12 +75,15 @@ class AudioDevice(AzurePercept):
             File can either be BufferedWriter opened with open("./file.wav", "wb") or a 
             string that specifies the path to a new file to be created
         """
+        if self._is_recording is True:
+            raise Exception("Already recording. Run stop_recording() first")
         if self.is_ready() == False:
             raise Exception("Device must be authenticated before recording can start")
         # if isinstance(file, io.BufferedWriter):
         #     _hardware.start_recording(file)
         if isinstance(file, str):
             # self.file = open(file, 'w+')
+            self._is_recording = True
             _hardware.start_recording(file)
         else:
             raise Exception("start_recording(filehandle) must be called with a file handle")
@@ -89,6 +93,7 @@ class AudioDevice(AzurePercept):
         Stops the audio recording and closes the WAV file.
         """
         _hardware.stop_recording()
+        self._is_recording = False
 
     def get_raw_audio(self, frames_count=1600):
         """

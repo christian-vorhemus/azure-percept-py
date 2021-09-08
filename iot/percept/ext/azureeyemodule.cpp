@@ -19,6 +19,7 @@
 #include "mxIfMemoryHandle.h"
 #include <fcntl.h>
 #include <XLink.h>
+#include <vector>
 #include "XLinkMacros.h"
 #include "XLinkPrivateFields.h"
 #include "XLinkLog.h"
@@ -37,6 +38,7 @@ extern "C"
 #define mvLogDefaultLevelSet(MVLOG_ERROR)
 #define mvLogLevelSet(MVLOG_ERROR)
 
+FILE *tmp;
 char *mvcmdFile;
 char *in_file;
 char *out_file;
@@ -156,7 +158,6 @@ int convertVideo(const char *in_filename, const char *out_filename)
   }
   AVOutputFormat *fmt = av_guess_format(0, out_filename, 0);
   output_format_context->oformat = fmt;
-
   number_of_streams = input_format_context->nb_streams;
   streams_list =
       (int *)av_mallocz_array(number_of_streams, sizeof(*streams_list));
@@ -290,14 +291,18 @@ void *record(void *par)
   mxIf::CameraBlock camera_block = mxIf::CreateCameraBlock(cam_mode);
   camera_block.Start();
   isRunning = true;
-  FILE *tmp;
   fname = tmpnam(NULL);
-  in_file = (char *)malloc(strlen(fname) + 1);
-  strcpy(in_file, fname);
   tmp = fopen(fname, "wb");
+  isConverting = false;
+  uint8_t *total = NULL;
+  unsigned int totalSize = 0;
 
-  while (isRunning)
+  while (true)
   {
+    if (!isRunning)
+    {
+      break;
+    }
     mxIf::MemoryHandle h264_hndl = camera_block.GetNextOutput(mxIf::CameraBlock::Outputs::H264);
     uint8_t *pBuf = (uint8_t *)malloc(h264_hndl.bufSize);
     assert(nullptr != pBuf);
@@ -308,9 +313,7 @@ void *record(void *par)
     free(pBuf);
   }
   fclose(tmp);
-  isConverting = true;
-  int res = convertVideo(in_file, out_file);
-  free(in_file);
+  int res = convertVideo(fname, out_file);
   if (remove(fname) != 0)
   {
     printf("Deleting temporary file failed\n");
@@ -320,7 +323,9 @@ void *record(void *par)
     printf("Converting video failed\n");
     exit(1);
   }
-  isConverting = false;
+  free(out_file);
+  isConverting = true;
+  return 0;
 }
 
 void *pullThread(void *par)
@@ -411,6 +416,7 @@ void *pullThread(void *par)
       // }
       // pthread_join(threadNn, NULL);
       free(currentImage);
+      // free(inferenceOutput);
       camera_block.ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
     }
 
@@ -429,6 +435,7 @@ void *pullThread(void *par)
       printf("Converting video failed\n");
       exit(1);
     }
+    free(out_file);
   }
   pthread_exit(0);
 }
@@ -476,19 +483,13 @@ static PyObject *method_prepareeye(PyObject *self, PyObject *args)
 
 static PyObject *method_closedevice(PyObject *self, PyObject *args)
 {
-  sleep(1);
   mxIf::Reset();
-  free(out_file);
   return Py_BuildValue("");
 }
 
 static PyObject *method_stopinference(PyObject *self, PyObject *args)
 {
   isRunning = false;
-  if (inferenceOutput)
-  {
-    free(inferenceOutput);
-  }
   return Py_BuildValue("");
 }
 
