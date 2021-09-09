@@ -45,7 +45,6 @@ char *out_file;
 char *blob_file;
 char *fname;
 bool isRunning = false;
-bool store = false;
 bool inference = false;
 bool isConverting = false;
 uint8_t *inferenceOutput;
@@ -55,6 +54,7 @@ int currentWidth;
 int currentHeight;
 uint8_t *currentImage;
 unsigned int currentSize;
+bool hold;
 
 float bytesToFloat16(uint8_t *bytes)
 {
@@ -328,6 +328,21 @@ void *record(void *par)
   return 0;
 }
 
+// This thread must run during inference, otherwise inference hangs after a while
+void *h264Thread(void *par)
+{
+  mxIf::CameraBlock *camera_block = (mxIf::CameraBlock *)par;
+  while (isRunning)
+  {
+    mxIf::MemoryHandle h264_hndl = camera_block->GetNextOutput(mxIf::CameraBlock::Outputs::H264);
+    uint8_t *pBuf = (uint8_t *)malloc(h264_hndl.bufSize);
+    assert(nullptr != pBuf);
+    h264_hndl.TransferTo(pBuf);
+    free(pBuf);
+  }
+  return 0;
+}
+
 void *pullThread(void *par)
 {
   auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
@@ -338,106 +353,83 @@ void *pullThread(void *par)
   isRunning = true;
   // tmp = tmpfile();
   FILE *tmp;
-  if (store)
-  {
-    fname = tmpnam(NULL);
-    // printf("filename: %s\n", fname);
-    in_file = (char *)malloc(strlen(fname) + 1);
-    strcpy(in_file, fname);
-    tmp = fopen(fname, "wb");
-  }
-  // pthread_t threadNn;
+  pthread_t threadH264;
+  int ret = pthread_create(&threadH264, NULL, h264Thread, &camera_block);
+
   while (isRunning)
   {
-    mxIf::MemoryHandle h264_hndl = camera_block.GetNextOutput(mxIf::CameraBlock::Outputs::H264);
-    uint8_t *pBuf = (uint8_t *)malloc(h264_hndl.bufSize);
-    assert(nullptr != pBuf);
-    h264_hndl.TransferTo(pBuf);
+    // mxIf::MemoryHandle h264_hndl = camera_block.GetNextOutput(mxIf::CameraBlock::Outputs::H264);
+    // uint8_t *pBuf = (uint8_t *)malloc(h264_hndl.bufSize);
+    // assert(nullptr != pBuf);
+    // h264_hndl.TransferTo(pBuf);
+    // free(pBuf);
 
-    // printf("H264: size=%d; seqNo=%ld; ts=%ld\n", h264_hndl.bufSize, h264_hndl.seqNo, h264_hndl.ts);
+    // // printf("H264: size=%d; seqNo=%ld; ts=%ld\n", h264_hndl.bufSize, h264_hndl.seqNo, h264_hndl.ts);
 
-    //int ret_wr = write(out, pBuf, h264_hndl.bufSize);
-    if (store)
+    // //int ret_wr = write(out, pBuf, h264_hndl.bufSize);
+    // if (store)
+    // {
+    //   fwrite(pBuf, sizeof(uint8_t), h264_hndl.bufSize, tmp);
+    // }
+    // //if (ret_wr != h264_hndl.bufSize)
+    // //    printf("Failed to write chunk!\n");
+
+    mxIf::MemoryHandle bgr_hndl = camera_block.GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
+    std::map<std::string, mxIf::InferIn> inferIn;
+    auto info = infer_block.get_info();
+    currentWidth = bgr_hndl.width;
+    currentHeight = bgr_hndl.height;
+    currentImage = (uint8_t *)malloc(bgr_hndl.bufSize);
+    currentSize = bgr_hndl.bufSize;
+    assert(nullptr != currentImage);
+    bgr_hndl.TransferTo(currentImage);
+    mxIf::InferIn inferReq = {bgr_hndl, mxIf::PREPROCESS_ROI{0, 0, bgr_hndl.width, bgr_hndl.height}};
+    for (const auto &input_name : info.first)
     {
-      fwrite(pBuf, sizeof(uint8_t), h264_hndl.bufSize, tmp);
-    }
-    //if (ret_wr != h264_hndl.bufSize)
-    //    printf("Failed to write chunk!\n");
-
-    if (inference)
-    {
-      mxIf::MemoryHandle bgr_hndl = camera_block.GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
-      std::map<std::string, mxIf::InferIn> inferIn;
-      auto info = infer_block.get_info();
-      currentWidth = bgr_hndl.width;
-      currentHeight = bgr_hndl.height;
-      currentImage = (uint8_t *)malloc(bgr_hndl.bufSize);
-      currentSize = bgr_hndl.bufSize;
-      assert(nullptr != currentImage);
-      bgr_hndl.TransferTo(currentImage);
-      mxIf::InferIn inferReq = {bgr_hndl, mxIf::PREPROCESS_ROI{0, 0, bgr_hndl.width, bgr_hndl.height}};
-      for (const auto &input_name : info.first)
-      {
-        inferIn.insert(std::make_pair(input_name, inferReq));
-      }
-
-      infer_block.Enqueue(inferIn);
-
-      std::map<std::string, mxIf::MemoryHandle> nn_out = infer_block.GetNextOutput();
-
-      const auto &output_shapes = infer_block.get_output_shapes();
-      for (const auto &output_shape : output_shapes)
-      {
-        inferenceType = static_cast<std::uint32_t>(output_shape.data_type);
-      }
-      // printf("Output datatype: %d\n", type);
-      auto output_names = infer_block.get_info().second;
-      for (const std::string &output_name : output_names)
-      {
-        auto nn_hndl = nn_out[output_name];
-        inferenceOutput = (uint8_t *)malloc(nn_hndl.bufSize);
-        assert(nullptr != inferenceOutput);
-        nn_hndl.TransferTo(inferenceOutput);
-        inferenceSize = nn_hndl.bufSize;
-
-        // printf("NN: name=%s size=%d; seqNo=%ld; ts=%ld\n",
-        //        output_name.data(),
-        //        nn_hndl.bufSize,
-        //        nn_hndl.seqNo,
-        //        nn_hndl.ts);
-      }
-
-      // While NN is running, skip BGRs
-      // while (isRunning == true)
-      // {
-      //   // Skip
-      //   mxIf::MemoryHandle bgr_hndl_2 = camera_block.GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
-      //   camera_block.ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl_2);
-      // }
-      // pthread_join(threadNn, NULL);
-      free(currentImage);
-      // free(inferenceOutput);
-      camera_block.ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
+      inferIn.insert(std::make_pair(input_name, inferReq));
     }
 
-    free(pBuf);
+    infer_block.Enqueue(inferIn);
+
+    std::map<std::string, mxIf::MemoryHandle> nn_out = infer_block.GetNextOutput();
+
+    const auto &output_shapes = infer_block.get_output_shapes();
+    for (const auto &output_shape : output_shapes)
+    {
+      inferenceType = static_cast<std::uint32_t>(output_shape.data_type);
+    }
+    // printf("Output datatype: %d\n", type);
+    auto output_names = infer_block.get_info().second;
+    for (const std::string &output_name : output_names)
+    {
+      auto nn_hndl = nn_out[output_name];
+      inferenceOutput = (uint8_t *)malloc(nn_hndl.bufSize);
+      assert(nullptr != inferenceOutput);
+      nn_hndl.TransferTo(inferenceOutput);
+      inferenceSize = nn_hndl.bufSize;
+    }
+
+    free(currentImage);
+    // Not freeing this will cause a memory leak, however, otherwise the inference output is garbage
+    // free(inferenceOutput);
+    camera_block.ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
   }
   if (tmp)
   {
     fclose(tmp);
   }
   free(blob_file);
-  if (store)
-  {
-    int res = convertVideo(in_file, out_file);
-    if (res != 0)
-    {
-      printf("Converting video failed\n");
-      exit(1);
-    }
-    free(out_file);
-  }
-  pthread_exit(0);
+  // if (store)
+  // {
+  //   int res = convertVideo(in_file, out_file);
+  //   if (res != 0)
+  //   {
+  //     printf("Converting video failed\n");
+  //     exit(1);
+  //   }
+  //   free(out_file);
+  // }
+  return 0;
 }
 
 static PyObject *method_startrecording(PyObject *self, PyObject *args)
@@ -450,7 +442,6 @@ static PyObject *method_startrecording(PyObject *self, PyObject *args)
   out_file = (char *)malloc(strlen(out) + 1);
   strcpy(out_file, out);
   pthread_t tid;
-  store = true;
   inference = false;
   pthread_create(&tid, NULL, record, NULL);
   return Py_BuildValue("");
@@ -496,6 +487,7 @@ static PyObject *method_stopinference(PyObject *self, PyObject *args)
 static PyObject *method_getinference(PyObject *self, PyObject *args)
 {
   int returnImage;
+  hold = true;
   if (!PyArg_ParseTuple(args, "i", &returnImage))
   {
     return NULL;
@@ -505,10 +497,12 @@ static PyObject *method_getinference(PyObject *self, PyObject *args)
     npy_intp dims[3] = {3, currentHeight, currentWidth};
     PyObject *res = PyArray_SimpleNew(3, dims, NPY_UINT8);
     memcpy(PyArray_DATA(res), currentImage, currentSize);
+    hold = false;
     return Py_BuildValue("(y#iO)", inferenceOutput, inferenceSize, inferenceType, res);
   }
   else
   {
+    hold = false;
     return Py_BuildValue("(y#i)", inferenceOutput, inferenceSize, inferenceType);
   }
 }
@@ -541,6 +535,7 @@ static PyObject *method_getframe(PyObject *self, PyObject *args)
 static PyObject *method_startinference(PyObject *self, PyObject *args)
 {
   char *out;
+  hold = false;
   if (!PyArg_ParseTuple(args, "s", &out))
   {
     return NULL;
@@ -550,7 +545,6 @@ static PyObject *method_startinference(PyObject *self, PyObject *args)
   strcpy(blob_file, out);
 
   pthread_t tid;
-  store = false;
   inference = true;
   pthread_create(&tid, NULL, pullThread, NULL);
   return Py_BuildValue("");
