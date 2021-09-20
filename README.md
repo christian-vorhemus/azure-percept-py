@@ -10,6 +10,7 @@ Make sure the following is installed on your Percept device or the container you
 - pyusb (run `sudo yum install libusb-devel`, the in addition necessary Python packages are installed automatically as a dependency of azure-percept-py)
 - pthreads (libpthread should be available on most OS by default, check your library path - for example /usr/lib/ - to be sure)
 - Install pip: `sudo yum install pip3`
+- Numpy: `sudo pip3 install numpy`
 
 ## Install
 The following guide assumes you run the code directly on the Percept board (CBL Mariner OS). You can also create a docker image and install the Python module there, in that case make sure that you mount the host's /dev/bus/usb into the image.
