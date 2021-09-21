@@ -22,7 +22,7 @@ def main():
     numpy_include_path = path.join(path.dirname(np.__file__), "core/include")
     setup(name="azure-percept",
           version="1.0.0",
-          description="Unofficial  Python package to control the Azure Percept SoM",
+          description="Unofficial Python package to control the Azure Percept SoM",
           author="Christian Vorhemus",
           author_email="chris.vorhemus@outlook.com",
           packages=['azure'],
