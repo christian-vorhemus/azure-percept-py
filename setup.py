@@ -21,7 +21,7 @@ def main():
     assets_path = str(path.join(path.dirname(__file__), 'iot', 'percept', 'assets'))
     numpy_include_path = path.join(path.dirname(np.__file__), "core/include")
     setup(name="azure-percept",
-          version="1.0.0",
+          version="0.0.1",
           description="Unofficial Python package to control the Azure Percept SoM",
           author="Christian Vorhemus",
           author_email="chris.vorhemus@outlook.com",

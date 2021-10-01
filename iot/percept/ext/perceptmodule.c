@@ -94,6 +94,12 @@ void *record(void *args)
     fprintf(stderr, "Error: pcapture_handle is NULL\n");
     exit(1);
   }
+  if ((err = snd_pcm_prepare(pcapture_handle)) < 0)
+  {
+    fprintf(stderr, "cannot prepare audio interface for use (%s)\n",
+            snd_strerror(err));
+    exit(1);
+  }
   while (true)
   {
     if (!isRecording)
@@ -103,7 +109,8 @@ void *record(void *args)
     if ((err = snd_pcm_readi(pcapture_handle, buffer, buffer_frames)) !=
         buffer_frames)
     {
-      //fprintf(stderr, "Read from audio interface failed (%s)\n", snd_strerror(err));
+      fprintf(stderr, "Read from audio interface failed (%s)\n", snd_strerror(err));
+      break;
     }
     fwrite(buffer, sizeof(char), buffer_frames * snd_pcm_format_width(format) / 8 * channels, out);
   }
