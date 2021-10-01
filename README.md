@@ -6,10 +6,8 @@ Please refer to the official documentation to learn how to connect to the device
 
 ## Prerequisites
 Make sure the following is installed on your Percept device or the container you want to use
-- libalsa and corresponding header files (run `sudo yum install alsa-lib-devel`)
-- pyusb (run `sudo yum install libusb-devel`, the in addition necessary Python packages are installed automatically as a dependency of azure-percept-py)
+- libalsa, libusb, gcc, binutils, Python headers, setuptools and pip (run `sudo yum install -y alsa-lib-devel libusb-devel gcc glibc-devel kernel-devel kernel-headers binutils python3-devel python3-setuptools python3-pip`)
 - pthreads (libpthread should be available on most OS by default, check your library path - for example /usr/lib/ - to be sure)
-- Install pip: `sudo yum install pip3`
 - Numpy: `sudo pip3 install numpy`
 
 ## Install
