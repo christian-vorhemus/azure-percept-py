@@ -10,6 +10,7 @@ Make sure the following is installed on your Percept device or the container you
 - pyusb (run `sudo yum install -y libusb-devel`, the in addition necessary Python packages are installed automatically as a dependency of azure-percept-py)
 - pthreads (libpthread should be available on most OS by default, check your library path - for example /usr/lib/ - to be sure)
 - Install pip: `sudo yum install -y python3-pip`
+- Python setuptools: `sudo yum install -y python3-setuptools`
 - Numpy: `sudo pip3 install numpy`
 
 ## Install
