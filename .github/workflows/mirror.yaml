@@ -1,0 +1,13 @@
+name: Mirroring
+on: [push]
+
+jobs:
+  ubuntu-build:
+    runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v1
+        - uses: christian-vorhemus/azure-percept-py@main
+          with:
+            REMOTE: 'https://dev.azure.com/chrysalis-innersource/Azure%20Percept%20Python%20library/_git/Azure%20Percept%20Python%20library'
+            GIT_USERNAME: chrysalis-innersource
+            GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
