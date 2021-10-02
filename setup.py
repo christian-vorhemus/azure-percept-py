@@ -1,6 +1,7 @@
 #from distutils.core import setup, Extension
 from setuptools import setup, Extension
 import os
+import uuid
 from os import path
 import numpy as np
 
