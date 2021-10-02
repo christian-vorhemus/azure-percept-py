@@ -12,7 +12,7 @@ Make sure the following is installed on your Percept device or the container you
 
 ## Install
 The following guide assumes you run the code directly on the Percept board (CBL Mariner OS). You can also create a docker image and install the Python module there, in that case make sure that you mount the host's /dev/bus/usb into the image.
-- Clone the source code on your Percept device `git clone https://github.com/christian-vorhemus/azure-percept-py.git`
+- Clone the source code on your Percept device `git clone https://github.com/christian-vorhemus/azure-percept-py.git` (if you're accessing the repo from Azure Devops use `git clone https://chrysalis-innersource@dev.azure.com/chrysalis-innersource/Azure%20Percept%20Python%20library/_git/Azure%20Percept%20Python%20library`)
 - Open a terminal and cd into `azure-percept-py`
 - Run `sudo pip3 install .`
 - To uninstall run `sudo pip3 uninstall azure-percept`
