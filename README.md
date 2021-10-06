@@ -1,5 +1,7 @@
 This is the source code for azure-percept-py - an unofficial Python library to access the sensors of Azure Percept in Python.
 
+**IMPORTANT**: This is an experimental libray, expect bugs. If you encounter them, please [open an issue](https://github.com/christian-vorhemus/azure-percept-py/issues) on Github.
+
 ## Connect to your Percept
 
 Please refer to the official documentation to learn how to connect to the device: https://docs.microsoft.com/en-us/azure/azure-percept/how-to-ssh-into-percept-dk
