@@ -71,8 +71,8 @@ print("Authentication successful!")
 
 # this will convert a ONNX model to a model file with the same name 
 # and a .blob suffix to the output directory "/path/to"
-vision.convert_model("/path/to/mobilenetv2-7.onnx", "/path/to") 
-vision.start_inference("/path/to/mobilenetv2-7.blob")
+vision.convert_model("/path/to/resnet18-v1-7.onnx", "/path/to") 
+vision.start_inference("/path/to/resnet18-v1-7.blob")
 arr = vision.get_inference() # arr is a numpy array that contains the model output
 print(arr.shape)
 vision.stop_inference()
