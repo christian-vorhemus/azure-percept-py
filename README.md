@@ -1,5 +1,7 @@
 This is the source code for azure-percept-py - an unofficial Python library to access the sensors of Azure Percept in Python.
 
+**IMPORTANT**: This is an experimental libray, expect bugs. If you encounter them, please [open an issue](https://github.com/christian-vorhemus/azure-percept-py/issues) on Github.
+
 ## Connect to your Percept
 
 Please refer to the official documentation to learn how to connect to the device: https://docs.microsoft.com/en-us/azure/azure-percept/how-to-ssh-into-percept-dk
@@ -49,7 +51,7 @@ Run `sudo python3 perceptaudio.py` to run the script.
 
 ## Azure Percept Vision samples
 ### Run a machine learning model on the VPU
-The following sample shows how you can run a model on the Azure Vision Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [Mobilenet](https://github.com/onnx/models/raw/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx). Create a new file `perceptvision.py` with the following content
+The following sample shows how you can run a model on the Azure Vision Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [ResNet-18](https://github.com/onnx/models/raw/master/vision/classification/resnet/model/resnet18-v1-7.onnx). Create a new file `perceptvision.py` with the following content
 
 ```python
 from azure.iot.percept import VisionDevice
@@ -69,8 +71,8 @@ print("Authentication successful!")
 
 # this will convert a ONNX model to a model file with the same name 
 # and a .blob suffix to the output directory "/path/to"
-vision.convert_model("/path/to/mobilenetv2-7.onnx", "/path/to") 
-vision.start_inference("/path/to/mobilenetv2-7.blob")
+vision.convert_model("/path/to/resnet18-v1-7.onnx", "/path/to") 
+vision.start_inference("/path/to/resnet18-v1-7.blob")
 arr = vision.get_inference() # arr is a numpy array that contains the model output
 print(arr.shape)
 vision.stop_inference()
