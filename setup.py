@@ -33,7 +33,14 @@ def main():
           package_data={
               'azure': package_files
           },
-          data_files=[('/usr/lib', ['iot/percept/assets/libswresample.so', 'iot/percept/assets/libmxIf.so', 'iot/percept/assets/libmxIf.a', 'iot/percept/assets/libavcodec.so.57', 'iot/percept/assets/libavformat.so.57', 'iot/percept/assets/libavutil.so.55', 'iot/percept/assets/libswresample.so.2', 'iot/percept/assets/libswscale.so.4'])],
+          data_files=[('/lib64', ['iot/percept/assets/plugins.xml']), ('/usr/lib', ['iot/percept/assets/libmyriadPlugin.so', 
+'iot/percept/assets/libngraph.so', 
+'iot/percept/assets/libswresample.so', 'iot/percept/assets/libmxIf.so', 
+'iot/percept/assets/libmxIf.a', 'iot/percept/assets/libavcodec.so.57', 'iot/percept/assets/libinference_engine.so', 
+'iot/percept/assets/libinference_engine_ir_reader.so', 'iot/percept/assets/libinference_engine_legacy.so', 
+'iot/percept/assets/libinference_engine_transformations.so', 
+'iot/percept/assets/libavformat.so.57', 
+'iot/percept/assets/libavutil.so.55', 'iot/percept/assets/libswresample.so.2', 'iot/percept/assets/libswscale.so.4'])],
           ext_modules=[Extension("_hardware", ["iot/percept/ext/perceptmodule.c"], extra_link_args=["-lasound", "-lpthread"]),
                        Extension("_azureeye", ["iot/percept/ext/azureeyemodule.cpp"], include_dirs=["iot/percept/ext/include", 
 "iot/percept/ext/include/VPUInferBlock/host/include", "iot/percept/ext/include/XLink", 

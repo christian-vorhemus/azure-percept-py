@@ -162,6 +162,9 @@ class VisionDevice(AzurePercept):
         else:
             res, res_type, img = _azureeye.get_inference(return_image)
 
+        if res is None:
+            raise Exception("Could not retrieve inference output from vision module")
+
         if res_type == 0:
             le = int(len(res) / 2)
             ret = np.frombuffer(res, dtype='float16', count=le, offset=0)

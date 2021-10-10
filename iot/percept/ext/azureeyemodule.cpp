@@ -41,10 +41,14 @@ extern "C"
 FILE *tmp;
 char *mvcmdFile;
 char *in_file;
+void *camera_pointer = nullptr;
+std::shared_ptr<mxIf::CameraBlock> m_cam;
+std::shared_ptr<mxIf::InferBlock> infer;
 char *out_file;
 char *blob_file;
 char *fname;
 bool isRunning = false;
+bool isOpen = false;
 bool inference = false;
 bool isConverting = false;
 uint8_t *inferenceOutput;
@@ -55,69 +59,20 @@ int currentHeight;
 uint8_t *currentImage;
 unsigned int currentSize;
 bool hold;
+bool camOn = false;
 
-float bytesToFloat16(uint8_t *bytes)
+std::string randomString(int len)
 {
-  float f;
-  uint8_t *f_ptr = (uint8_t *)&f;
-  f_ptr[1] = bytes[1];
-  f_ptr[0] = bytes[0];
-  return f;
-}
+  std::string tmp;
+  const char alphabet[] =
+      "0123456789abcdefghijklmnopqrstuvwxyz";
 
-int bytesToInt(uint8_t *bytes)
-{
-  int result = 0;
-  for (int n = sizeof(int); n >= 0; n--)
+  for (int i = 0; i < len; ++i)
   {
-    result = (result << 8) + bytes[n];
+    tmp += alphabet[rand() % (sizeof(alphabet) - 1)];
   }
-  return result;
-}
 
-float bytesToFloat162(uint8_t *bytes)
-{
-  uint16_t value = bytes[1] | (bytes[0] << 8);
-  union FP32
-  {
-    uint32_t u;
-    float f;
-  };
-
-  const union FP32 magic = {(254UL - 15UL) << 23};
-  const union FP32 was_inf_nan = {(127UL + 16UL) << 23};
-  union FP32 out;
-
-  out.u = (value & 0x7FFFU) << 13;
-  out.f *= magic.f;
-  if (out.f >= was_inf_nan.f)
-  {
-    out.u |= 255UL << 23;
-  }
-  out.u |= (value & 0x8000UL) << 16;
-
-  return out.f;
-}
-
-float bytesToFloat(uint8_t *bytes, bool big_endian)
-{
-  float f;
-  uint8_t *f_ptr = (uint8_t *)&f;
-  if (big_endian)
-  {
-    f_ptr[3] = bytes[0];
-    f_ptr[2] = bytes[1];
-    f_ptr[1] = bytes[2];
-    f_ptr[0] = bytes[3];
-  }
-  else
-  {
-    f_ptr[3] = bytes[3];
-    f_ptr[2] = bytes[2];
-    f_ptr[1] = bytes[1];
-    f_ptr[0] = bytes[0];
-  }
-  return f;
+  return tmp;
 }
 
 int convertVideo(const char *in_filename, const char *out_filename)
@@ -287,12 +242,25 @@ int convertVideo(const char *in_filename, const char *out_filename)
 
 void *record(void *par)
 {
-  auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
-  mxIf::CameraBlock camera_block = mxIf::CreateCameraBlock(cam_mode);
-  camera_block.Start();
   isRunning = true;
-  fname = tmpnam(NULL);
+
+  if (camOn == false)
+  {
+    auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
+    m_cam.reset(new mxIf::CameraBlock(cam_mode));
+    m_cam->Start();
+    camOn = true;
+  }
+
+  std::string f = randomString(16);
+  fname = (char *)malloc(16 + 5 + 5 + 1);
+  strcpy(fname, "/tmp/");
+  strcat(fname, f.c_str());
+  strcat(fname, ".h264");
+
+  // fname = tmpnam(NULL);
   tmp = fopen(fname, "wb");
+
   isConverting = false;
   uint8_t *total = NULL;
   unsigned int totalSize = 0;
@@ -303,7 +271,7 @@ void *record(void *par)
     {
       break;
     }
-    mxIf::MemoryHandle h264_hndl = camera_block.GetNextOutput(mxIf::CameraBlock::Outputs::H264);
+    mxIf::MemoryHandle h264_hndl = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::H264);
     uint8_t *pBuf = (uint8_t *)malloc(h264_hndl.bufSize);
     assert(nullptr != pBuf);
     h264_hndl.TransferTo(pBuf);
@@ -311,6 +279,7 @@ void *record(void *par)
     fwrite(pBuf, sizeof(uint8_t), h264_hndl.bufSize, tmp);
 
     free(pBuf);
+    m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::H264, h264_hndl);
   }
   fclose(tmp);
   int res = convertVideo(fname, out_file);
@@ -324,6 +293,7 @@ void *record(void *par)
     exit(1);
   }
   free(out_file);
+  free(fname);
   isConverting = true;
   return 0;
 }
@@ -331,10 +301,10 @@ void *record(void *par)
 // This thread must run during inference, otherwise inference hangs after a while
 void *h264Thread(void *par)
 {
-  mxIf::CameraBlock *camera_block = (mxIf::CameraBlock *)par;
-  while (isRunning)
+  // mxIf::CameraBlock *camera_block = (mxIf::CameraBlock *)par;
+  while (isOpen)
   {
-    mxIf::MemoryHandle h264_hndl = camera_block->GetNextOutput(mxIf::CameraBlock::Outputs::H264);
+    mxIf::MemoryHandle h264_hndl = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::H264);
     uint8_t *pBuf = (uint8_t *)malloc(h264_hndl.bufSize);
     assert(nullptr != pBuf);
     h264_hndl.TransferTo(pBuf);
@@ -345,16 +315,19 @@ void *h264Thread(void *par)
 
 void *pullThread(void *par)
 {
-  auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
-  mxIf::CameraBlock camera_block = mxIf::CreateCameraBlock(cam_mode);
-  mxIf::InferBlock infer_block = mxIf::CreateInferBlock(blob_file);
-  camera_block.Start();
   // char *out = (char *)par;
   isRunning = true;
   // tmp = tmpfile();
+  if (camOn == false)
+  {
+    auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
+    m_cam.reset(new mxIf::CameraBlock(cam_mode));
+    m_cam->Start();
+    camOn = true;
+  }
   FILE *tmp;
   pthread_t threadH264;
-  int ret = pthread_create(&threadH264, NULL, h264Thread, &camera_block);
+  int ret = pthread_create(&threadH264, NULL, h264Thread, NULL);
 
   while (isRunning)
   {
@@ -374,9 +347,9 @@ void *pullThread(void *par)
     // //if (ret_wr != h264_hndl.bufSize)
     // //    printf("Failed to write chunk!\n");
 
-    mxIf::MemoryHandle bgr_hndl = camera_block.GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
+    mxIf::MemoryHandle bgr_hndl = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
     std::map<std::string, mxIf::InferIn> inferIn;
-    auto info = infer_block.get_info();
+    auto info = infer->get_info();
     currentWidth = bgr_hndl.width;
     currentHeight = bgr_hndl.height;
     currentImage = (uint8_t *)malloc(bgr_hndl.bufSize);
@@ -389,17 +362,17 @@ void *pullThread(void *par)
       inferIn.insert(std::make_pair(input_name, inferReq));
     }
 
-    infer_block.Enqueue(inferIn);
+    infer->Enqueue(inferIn);
 
-    std::map<std::string, mxIf::MemoryHandle> nn_out = infer_block.GetNextOutput();
+    std::map<std::string, mxIf::MemoryHandle> nn_out = infer->GetNextOutput();
 
-    const auto &output_shapes = infer_block.get_output_shapes();
+    const auto &output_shapes = infer->get_output_shapes();
     for (const auto &output_shape : output_shapes)
     {
       inferenceType = static_cast<std::uint32_t>(output_shape.data_type);
     }
     // printf("Output datatype: %d\n", type);
-    auto output_names = infer_block.get_info().second;
+    auto output_names = infer->get_info().second;
     for (const std::string &output_name : output_names)
     {
       auto nn_hndl = nn_out[output_name];
@@ -412,7 +385,7 @@ void *pullThread(void *par)
     free(currentImage);
     // Not freeing this will cause a memory leak, however, otherwise the inference output is garbage
     // free(inferenceOutput);
-    camera_block.ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
+    m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
   }
   if (tmp)
   {
@@ -469,11 +442,18 @@ static PyObject *method_prepareeye(PyObject *self, PyObject *args)
   mvLogLevelSet(MVLOG_ERROR);
   mvLogDefaultLevelSet(MVLOG_ERROR);
   mxIf::Boot(mvcmdFile);
+
+  isOpen = true;
+  // auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
+  // m_cam.reset(new mxIf::CameraBlock(cam_mode));
+  // m_cam->Start();
+
   return Py_BuildValue("");
 }
 
 static PyObject *method_closedevice(PyObject *self, PyObject *args)
 {
+  isOpen = false;
   mxIf::Reset();
   return Py_BuildValue("");
 }
@@ -509,10 +489,14 @@ static PyObject *method_getinference(PyObject *self, PyObject *args)
 
 static PyObject *method_getframe(PyObject *self, PyObject *args)
 {
-  auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
-  mxIf::CameraBlock camera_block = mxIf::CreateCameraBlock(cam_mode);
-  camera_block.Start();
-  mxIf::MemoryHandle bgr_hndl = camera_block.GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
+  if (camOn == false)
+  {
+    auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
+    m_cam.reset(new mxIf::CameraBlock(cam_mode));
+    m_cam->Start();
+    camOn = true;
+  }
+  mxIf::MemoryHandle bgr_hndl = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
   int width = bgr_hndl.width;
   int height = bgr_hndl.height;
 
@@ -522,7 +506,7 @@ static PyObject *method_getframe(PyObject *self, PyObject *args)
 
   // printf("BGR: size=%d; seqNo=%ld; ts=%ld\n", bgr_hndl.bufSize, bgr_hndl.seqNo, bgr_hndl.ts);
   uint32_t size = bgr_hndl.bufSize;
-  camera_block.ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
+  m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
 
   npy_intp dims[3] = {3, height, width};
   PyObject *res = PyArray_SimpleNew(3, dims, NPY_UINT8);
@@ -543,6 +527,9 @@ static PyObject *method_startinference(PyObject *self, PyObject *args)
 
   blob_file = (char *)malloc(strlen(out) + 1);
   strcpy(blob_file, out);
+
+  // mxIf::InferBlock infer_block = mxIf::CreateInferBlock(blob_file);
+  infer.reset(new mxIf::InferBlock(blob_file));
 
   pthread_t tid;
   inference = true;
