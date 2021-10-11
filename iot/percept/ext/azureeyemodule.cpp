@@ -1,33 +1,32 @@
 #include <Python.h>
-
-#include <numpy/arrayobject.h>
-
-#include <stdio.h>
-#include <stdbool.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <stdlib.h>
 #include <assert.h>
+#include <numpy/arrayobject.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <string>
+#include <unistd.h>
+
 #include <map>
+#include <string>
 
 #define __STDC_WANT_LIB_EXT1__ 1
 
+#include <VPUBlockTypes.h>
+#include <XLink.h>
+#include <fcntl.h>
+
+#include <CameraStub.hpp>
+#include <vector>
+
+#include "XLinkLog.h"
+#include "XLinkMacros.h"
+#include "XLinkPrivateFields.h"
+#include "XLinkStringUtils.h"
 #include "mxIf.h"
 #include "mxIfCameraBlock.h"
 #include "mxIfMemoryHandle.h"
-#include <fcntl.h>
-#include <XLink.h>
-#include <vector>
-#include "XLinkMacros.h"
-#include "XLinkPrivateFields.h"
-#include "XLinkLog.h"
-#include "XLinkStringUtils.h"
-
-#include <VPUBlockTypes.h>
-
-#include <CameraStub.hpp>
 
 extern "C"
 {
@@ -64,8 +63,7 @@ bool camOn = false;
 std::string randomString(int len)
 {
   std::string tmp;
-  const char alphabet[] =
-      "0123456789abcdefghijklmnopqrstuvwxyz";
+  const char alphabet[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
   for (int i = 0; i < len; ++i)
   {
@@ -271,7 +269,8 @@ void *record(void *par)
     {
       break;
     }
-    mxIf::MemoryHandle h264_hndl = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::H264);
+    mxIf::MemoryHandle h264_hndl =
+        m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::H264);
     uint8_t *pBuf = (uint8_t *)malloc(h264_hndl.bufSize);
     assert(nullptr != pBuf);
     h264_hndl.TransferTo(pBuf);
@@ -298,13 +297,15 @@ void *record(void *par)
   return 0;
 }
 
-// This thread must run during inference, otherwise inference hangs after a while
+// This thread must run during inference, otherwise inference hangs after a
+// while
 void *h264Thread(void *par)
 {
   // mxIf::CameraBlock *camera_block = (mxIf::CameraBlock *)par;
   while (isOpen)
   {
-    mxIf::MemoryHandle h264_hndl = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::H264);
+    mxIf::MemoryHandle h264_hndl =
+        m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::H264);
     uint8_t *pBuf = (uint8_t *)malloc(h264_hndl.bufSize);
     assert(nullptr != pBuf);
     h264_hndl.TransferTo(pBuf);
@@ -324,20 +325,21 @@ void *pullThread(void *par)
     m_cam.reset(new mxIf::CameraBlock(cam_mode));
     m_cam->Start();
     camOn = true;
+    pthread_t threadH264;
+    int ret = pthread_create(&threadH264, NULL, h264Thread, NULL);
   }
   FILE *tmp;
-  pthread_t threadH264;
-  int ret = pthread_create(&threadH264, NULL, h264Thread, NULL);
 
   while (isRunning)
   {
-    // mxIf::MemoryHandle h264_hndl = camera_block.GetNextOutput(mxIf::CameraBlock::Outputs::H264);
-    // uint8_t *pBuf = (uint8_t *)malloc(h264_hndl.bufSize);
-    // assert(nullptr != pBuf);
+    // mxIf::MemoryHandle h264_hndl =
+    // camera_block.GetNextOutput(mxIf::CameraBlock::Outputs::H264); uint8_t
+    // *pBuf = (uint8_t *)malloc(h264_hndl.bufSize); assert(nullptr != pBuf);
     // h264_hndl.TransferTo(pBuf);
     // free(pBuf);
 
-    // // printf("H264: size=%d; seqNo=%ld; ts=%ld\n", h264_hndl.bufSize, h264_hndl.seqNo, h264_hndl.ts);
+    // // printf("H264: size=%d; seqNo=%ld; ts=%ld\n", h264_hndl.bufSize,
+    // h264_hndl.seqNo, h264_hndl.ts);
 
     // //int ret_wr = write(out, pBuf, h264_hndl.bufSize);
     // if (store)
@@ -347,7 +349,8 @@ void *pullThread(void *par)
     // //if (ret_wr != h264_hndl.bufSize)
     // //    printf("Failed to write chunk!\n");
 
-    mxIf::MemoryHandle bgr_hndl = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
+    mxIf::MemoryHandle bgr_hndl =
+        m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
     std::map<std::string, mxIf::InferIn> inferIn;
     auto info = infer->get_info();
     currentWidth = bgr_hndl.width;
@@ -356,7 +359,8 @@ void *pullThread(void *par)
     currentSize = bgr_hndl.bufSize;
     assert(nullptr != currentImage);
     bgr_hndl.TransferTo(currentImage);
-    mxIf::InferIn inferReq = {bgr_hndl, mxIf::PREPROCESS_ROI{0, 0, bgr_hndl.width, bgr_hndl.height}};
+    mxIf::InferIn inferReq = {
+        bgr_hndl, mxIf::PREPROCESS_ROI{0, 0, bgr_hndl.width, bgr_hndl.height}};
     for (const auto &input_name : info.first)
     {
       inferIn.insert(std::make_pair(input_name, inferReq));
@@ -383,8 +387,8 @@ void *pullThread(void *par)
     }
 
     free(currentImage);
-    // Not freeing this will cause a memory leak, however, otherwise the inference output is garbage
-    // free(inferenceOutput);
+    // Not freeing this will cause a memory leak, however, otherwise the
+    // inference output is garbage free(inferenceOutput);
     m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
   }
   if (tmp)
@@ -425,8 +429,8 @@ static PyObject *method_stoprecording(PyObject *self, PyObject *args)
   // if (tmp == NULL)
   // {
   //   printf("Temporary h264 packets file is not available");
-  //   PyErr_SetString(PyExc_TypeError, "Temporary h264 packets file is not available");
-  //   return NULL;
+  //   PyErr_SetString(PyExc_TypeError, "Temporary h264 packets file is not
+  //   available"); return NULL;
   // }
   isRunning = false;
   return Py_BuildValue("");
@@ -478,12 +482,14 @@ static PyObject *method_getinference(PyObject *self, PyObject *args)
     PyObject *res = PyArray_SimpleNew(3, dims, NPY_UINT8);
     memcpy(PyArray_DATA(res), currentImage, currentSize);
     hold = false;
-    return Py_BuildValue("(y#iO)", inferenceOutput, inferenceSize, inferenceType, res);
+    return Py_BuildValue("(y#iO)", inferenceOutput, inferenceSize,
+                         inferenceType, res);
   }
   else
   {
     hold = false;
-    return Py_BuildValue("(y#i)", inferenceOutput, inferenceSize, inferenceType);
+    return Py_BuildValue("(y#i)", inferenceOutput, inferenceSize,
+                         inferenceType);
   }
 }
 
@@ -495,22 +501,31 @@ static PyObject *method_getframe(PyObject *self, PyObject *args)
     m_cam.reset(new mxIf::CameraBlock(cam_mode));
     m_cam->Start();
     camOn = true;
+    pthread_t threadH264;
+    int ret = pthread_create(&threadH264, NULL, h264Thread, NULL);
   }
-  mxIf::MemoryHandle bgr_hndl = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
-  int width = bgr_hndl.width;
-  int height = bgr_hndl.height;
+  int width;
+  int height;
+  uint8_t *pBuf = nullptr;
+  uint32_t size;
+  // Take a few frames to avoid color distorted images
+  for (int i = 0; i < 5; i++)
+  {
+    mxIf::MemoryHandle bgr_hndl = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
+    width = bgr_hndl.width;
+    height = bgr_hndl.height;
 
-  uint8_t *pBuf = (uint8_t *)malloc(bgr_hndl.bufSize);
-  assert(nullptr != pBuf);
-  bgr_hndl.TransferTo(pBuf);
-
-  // printf("BGR: size=%d; seqNo=%ld; ts=%ld\n", bgr_hndl.bufSize, bgr_hndl.seqNo, bgr_hndl.ts);
-  uint32_t size = bgr_hndl.bufSize;
-  m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
+    pBuf = (uint8_t *)malloc(bgr_hndl.bufSize);
+    assert(nullptr != pBuf);
+    bgr_hndl.TransferTo(pBuf);
+    size = bgr_hndl.bufSize;
+    m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
+  }
 
   npy_intp dims[3] = {3, height, width};
   PyObject *res = PyArray_SimpleNew(3, dims, NPY_UINT8);
   memcpy(PyArray_DATA(res), pBuf, size);
+  free(pBuf);
   return res;
 
   // return Py_BuildValue("(y#ii)", pBuf, size, width, height);
@@ -538,22 +553,25 @@ static PyObject *method_startinference(PyObject *self, PyObject *args)
 }
 
 static PyMethodDef EyeMethods[] = {
-    {"start_inference", method_startinference, METH_VARARGS, "Start model inference"},
-    {"stop_inference", method_stopinference, METH_VARARGS, "Stop model inference"},
-    {"get_inference", method_getinference, METH_VARARGS, "Gets the current model inference output"},
-    {"start_recording", method_startrecording, METH_VARARGS, "Start Azure Eye video recording"},
-    {"get_frame", method_getframe, METH_VARARGS, "Returns an image taken by the AzureEye camera"},
-    {"stop_recording", method_stoprecording, METH_VARARGS, "Stop Azure Eye video recording"},
-    {"prepare_eye", method_prepareeye, METH_VARARGS, "Prepares the Azure Eye device"},
+    {"start_inference", method_startinference, METH_VARARGS,
+     "Start model inference"},
+    {"stop_inference", method_stopinference, METH_VARARGS,
+     "Stop model inference"},
+    {"get_inference", method_getinference, METH_VARARGS,
+     "Gets the current model inference output"},
+    {"start_recording", method_startrecording, METH_VARARGS,
+     "Start Azure Eye video recording"},
+    {"get_frame", method_getframe, METH_VARARGS,
+     "Returns an image taken by the AzureEye camera"},
+    {"stop_recording", method_stoprecording, METH_VARARGS,
+     "Stop Azure Eye video recording"},
+    {"prepare_eye", method_prepareeye, METH_VARARGS,
+     "Prepares the Azure Eye device"},
     {"close_eye", method_closedevice, METH_VARARGS, "Closes the Eye device"},
     {NULL, NULL, 0, NULL}};
 
 static struct PyModuleDef _azureeyemodule = {
-    PyModuleDef_HEAD_INIT,
-    "_azureeye",
-    "Azure Eye interface",
-    -1,
-    EyeMethods};
+    PyModuleDef_HEAD_INIT, "_azureeye", "Azure Eye interface", -1, EyeMethods};
 
 PyMODINIT_FUNC PyInit__azureeye(void)
 {
