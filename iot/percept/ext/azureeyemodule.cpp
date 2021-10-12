@@ -508,19 +508,17 @@ static PyObject *method_getframe(PyObject *self, PyObject *args)
   int height;
   uint8_t *pBuf = nullptr;
   uint32_t size;
-  // Take a few frames to avoid color distorted images
-  for (int i = 0; i < 5; i++)
-  {
-    mxIf::MemoryHandle bgr_hndl = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
-    width = bgr_hndl.width;
-    height = bgr_hndl.height;
 
-    pBuf = (uint8_t *)malloc(bgr_hndl.bufSize);
-    assert(nullptr != pBuf);
-    bgr_hndl.TransferTo(pBuf);
-    size = bgr_hndl.bufSize;
-    m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
-  }
+  mxIf::MemoryHandle bgr_hndl = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
+  width = bgr_hndl.width;
+  height = bgr_hndl.height;
+
+  pBuf = (uint8_t *)malloc(bgr_hndl.bufSize);
+  assert(nullptr != pBuf);
+  bgr_hndl.TransferTo(pBuf);
+  size = bgr_hndl.bufSize;
+
+  m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
 
   npy_intp dims[3] = {3, height, width};
   PyObject *res = PyArray_SimpleNew(3, dims, NPY_UINT8);
