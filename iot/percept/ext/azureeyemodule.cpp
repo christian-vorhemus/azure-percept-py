@@ -8,14 +8,17 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <iostream>
 #include <map>
-#include <string>
+
+#include "usbcamera.hh"
 
 #define __STDC_WANT_LIB_EXT1__ 1
 
 #include <VPUBlockTypes.h>
 #include <XLink.h>
 #include <fcntl.h>
+#include <mxIfMemoryWriteBlock.h>
 
 #include <CameraStub.hpp>
 #include <vector>
@@ -48,17 +51,50 @@ char *blob_file;
 char *fname;
 bool isRunning = false;
 bool isOpen = false;
-bool inference = false;
-bool isConverting = false;
-uint8_t *inferenceOutput;
 unsigned int inferenceSize;
 uint32_t inferenceType;
-int currentWidth;
-int currentHeight;
-uint8_t *currentImage;
-unsigned int currentSize;
-bool hold;
 bool camOn = false;
+int width;
+int height;
+
+class CaptureMetadata
+{
+public:
+  std::string deviceName;
+  struct buffer *buffers = NULL;
+  unsigned char *dst = nullptr;
+  unsigned int width = 0;
+  unsigned int height = 0;
+  unsigned int samples = 10;
+  unsigned int n_buffers = 0;
+  int fd = -1;
+  CaptureMetadata(char *device, size_t size, int fd, unsigned int n_buffers,
+                  unsigned int width, unsigned int height)
+  {
+    for (int i = 0; i < size; i++)
+    {
+      deviceName = deviceName + device[i];
+    }
+    this->n_buffers = n_buffers;
+    this->fd = fd;
+    this->deviceName = deviceName;
+    this->width = width;
+    this->height = height;
+    this->dst = (unsigned char *)malloc(width * height * 3 * sizeof(char));
+  }
+
+  void printBufferAddress()
+  {
+    for (int i = 0; i < this->n_buffers; i++)
+    {
+      printf("Address [%i]: %p\n", i, this->buffers[i].start);
+    }
+  }
+
+  void clear() { free(this->dst); }
+};
+
+std::vector<CaptureMetadata> devices;
 
 std::string randomString(int len)
 {
@@ -259,10 +295,6 @@ void *record(void *par)
   // fname = tmpnam(NULL);
   tmp = fopen(fname, "wb");
 
-  isConverting = false;
-  uint8_t *total = NULL;
-  unsigned int totalSize = 0;
-
   while (true)
   {
     if (!isRunning)
@@ -293,12 +325,11 @@ void *record(void *par)
   }
   free(out_file);
   free(fname);
-  isConverting = true;
   return 0;
 }
 
-// This thread must run during inference, otherwise inference hangs after a
-// while
+// This thread must run during inference,
+// otherwise inference hangs after a while
 void *h264Thread(void *par)
 {
   // mxIf::CameraBlock *camera_block = (mxIf::CameraBlock *)par;
@@ -314,100 +345,90 @@ void *h264Thread(void *par)
   return 0;
 }
 
-void *pullThread(void *par)
-{
-  // char *out = (char *)par;
-  isRunning = true;
-  // tmp = tmpfile();
-  if (camOn == false)
-  {
-    auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
-    m_cam.reset(new mxIf::CameraBlock(cam_mode));
-    m_cam->Start();
-    camOn = true;
-    pthread_t threadH264;
-    int ret = pthread_create(&threadH264, NULL, h264Thread, NULL);
-  }
-  FILE *tmp;
+// void *pullThread(void *par)
+// {
+//   // char *out = (char *)par;
+//   isRunning = true;
+//   // tmp = tmpfile();
+//   if (camOn == false)
+//   {
+//     auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
+//     m_cam.reset(new mxIf::CameraBlock(cam_mode));
+//     m_cam->Start();
+//     camOn = true;
+//     pthread_t threadH264;
+//     int ret = pthread_create(&threadH264, NULL, h264Thread, NULL);
+//   }
+//   FILE *tmp;
 
-  while (isRunning)
-  {
-    // mxIf::MemoryHandle h264_hndl =
-    // camera_block.GetNextOutput(mxIf::CameraBlock::Outputs::H264); uint8_t
-    // *pBuf = (uint8_t *)malloc(h264_hndl.bufSize); assert(nullptr != pBuf);
-    // h264_hndl.TransferTo(pBuf);
-    // free(pBuf);
+//   while (isRunning)
+//   {
+//     mxIf::MemoryHandle bgr_hndl =
+//         m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
+//     std::map<std::string, mxIf::InferIn> inferIn;
+//     auto info = infer->get_info();
+//     currentWidth = bgr_hndl.width;
+//     currentHeight = bgr_hndl.height;
+//     currentImage = (uint8_t *)malloc(bgr_hndl.bufSize);
+//     currentSize = bgr_hndl.bufSize;
+//     assert(nullptr != currentImage);
+//     bgr_hndl.TransferTo(currentImage);
+//     mxIf::InferIn inferReq = {
+//         bgr_hndl, mxIf::PREPROCESS_ROI{0, 0, bgr_hndl.width,
+//         bgr_hndl.height}};
+//     for (const auto &input_name : info.first)
+//     {
+//       inferIn.insert(std::make_pair(input_name, inferReq));
+//     }
 
-    // // printf("H264: size=%d; seqNo=%ld; ts=%ld\n", h264_hndl.bufSize,
-    // h264_hndl.seqNo, h264_hndl.ts);
+//     infer->Enqueue(inferIn);
 
-    // //int ret_wr = write(out, pBuf, h264_hndl.bufSize);
-    // if (store)
-    // {
-    //   fwrite(pBuf, sizeof(uint8_t), h264_hndl.bufSize, tmp);
-    // }
-    // //if (ret_wr != h264_hndl.bufSize)
-    // //    printf("Failed to write chunk!\n");
+//     std::map<std::string, mxIf::MemoryHandle> nn_out =
+//     infer->GetNextOutput();
 
-    mxIf::MemoryHandle bgr_hndl =
-        m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
-    std::map<std::string, mxIf::InferIn> inferIn;
-    auto info = infer->get_info();
-    currentWidth = bgr_hndl.width;
-    currentHeight = bgr_hndl.height;
-    currentImage = (uint8_t *)malloc(bgr_hndl.bufSize);
-    currentSize = bgr_hndl.bufSize;
-    assert(nullptr != currentImage);
-    bgr_hndl.TransferTo(currentImage);
-    mxIf::InferIn inferReq = {
-        bgr_hndl, mxIf::PREPROCESS_ROI{0, 0, bgr_hndl.width, bgr_hndl.height}};
-    for (const auto &input_name : info.first)
-    {
-      inferIn.insert(std::make_pair(input_name, inferReq));
-    }
+//     const auto &output_shapes = infer->get_output_shapes();
+//     for (const auto &output_shape : output_shapes)
+//     {
+//       inferenceType = static_cast<std::uint32_t>(output_shape.data_type);
+//     }
+//     // printf("Output datatype: %d\n", type);
+//     auto output_names = infer->get_info().second;
+//     for (const std::string &output_name : output_names)
+//     {
+//       auto nn_hndl = nn_out[output_name];
+//       inferenceOutput = (uint8_t *)malloc(nn_hndl.bufSize);
+//       assert(nullptr != inferenceOutput);
+//       nn_hndl.TransferTo(inferenceOutput);
+//       inferenceSize = nn_hndl.bufSize;
+//     }
 
-    infer->Enqueue(inferIn);
+//     while (hold)
+//     {
+//     }
+//     free(currentImage);
+//     // Not freeing this will cause a memory leak, however, otherwise the
+//     // inference output is garbage
+//     free(inferenceOutput);
 
-    std::map<std::string, mxIf::MemoryHandle> nn_out = infer->GetNextOutput();
-
-    const auto &output_shapes = infer->get_output_shapes();
-    for (const auto &output_shape : output_shapes)
-    {
-      inferenceType = static_cast<std::uint32_t>(output_shape.data_type);
-    }
-    // printf("Output datatype: %d\n", type);
-    auto output_names = infer->get_info().second;
-    for (const std::string &output_name : output_names)
-    {
-      auto nn_hndl = nn_out[output_name];
-      inferenceOutput = (uint8_t *)malloc(nn_hndl.bufSize);
-      assert(nullptr != inferenceOutput);
-      nn_hndl.TransferTo(inferenceOutput);
-      inferenceSize = nn_hndl.bufSize;
-    }
-
-    free(currentImage);
-    // Not freeing this will cause a memory leak, however, otherwise the
-    // inference output is garbage free(inferenceOutput);
-    m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
-  }
-  if (tmp)
-  {
-    fclose(tmp);
-  }
-  free(blob_file);
-  // if (store)
-  // {
-  //   int res = convertVideo(in_file, out_file);
-  //   if (res != 0)
-  //   {
-  //     printf("Converting video failed\n");
-  //     exit(1);
-  //   }
-  //   free(out_file);
-  // }
-  return 0;
-}
+//     m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
+//   }
+//   if (tmp)
+//   {
+//     fclose(tmp);
+//   }
+//   free(blob_file);
+//   // if (store)
+//   // {
+//   //   int res = convertVideo(in_file, out_file);
+//   //   if (res != 0)
+//   //   {
+//   //     printf("Converting video failed\n");
+//   //     exit(1);
+//   //   }
+//   //   free(out_file);
+//   // }
+//   return 0;
+// }
 
 static PyObject *method_startrecording(PyObject *self, PyObject *args)
 {
@@ -419,7 +440,6 @@ static PyObject *method_startrecording(PyObject *self, PyObject *args)
   out_file = (char *)malloc(strlen(out) + 1);
   strcpy(out_file, out);
   pthread_t tid;
-  inference = false;
   pthread_create(&tid, NULL, record, NULL);
   return Py_BuildValue("");
 }
@@ -457,40 +477,262 @@ static PyObject *method_prepareeye(PyObject *self, PyObject *args)
 
 static PyObject *method_closedevice(PyObject *self, PyObject *args)
 {
-  isOpen = false;
+  camOn = false;
+  sleep(1);
   mxIf::Reset();
   return Py_BuildValue("");
 }
 
 static PyObject *method_stopinference(PyObject *self, PyObject *args)
 {
+  captureStop();
+  for (CaptureMetadata device : devices)
+  {
+    if (device.deviceName != "/camera1")
+    {
+      deviceUninit(device.n_buffers, device.buffers);
+      deviceClose(device.fd);
+      // device.clear();
+    }
+  }
   isRunning = false;
+  isOpen = false;
   return Py_BuildValue("");
 }
 
 static PyObject *method_getinference(PyObject *self, PyObject *args)
 {
+  char *model_path;
   int returnImage;
-  hold = true;
+  int currentWidth;
+  int currentHeight;
+  uint8_t *currentImage;
+  unsigned int currentSize;
+  uint8_t *inferenceOutput;
+
   if (!PyArg_ParseTuple(args, "i", &returnImage))
   {
     return NULL;
   }
-  if (returnImage == 1)
+
+  PyObject *resultList = PyList_New(devices.size());
+
+  int index = 0;
+  if (camOn == false)
   {
-    npy_intp dims[3] = {3, currentHeight, currentWidth};
-    PyObject *res = PyArray_SimpleNew(3, dims, NPY_UINT8);
-    memcpy(PyArray_DATA(res), currentImage, currentSize);
-    hold = false;
-    return Py_BuildValue("(y#iO)", inferenceOutput, inferenceSize,
-                         inferenceType, res);
+    auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
+    m_cam.reset(new mxIf::CameraBlock(cam_mode));
+    m_cam->Start();
+    camOn = true;
+    pthread_t threadH264;
+    int ret = pthread_create(&threadH264, NULL, h264Thread, NULL);
   }
-  else
+
+  for (CaptureMetadata device : devices)
   {
-    hold = false;
-    return Py_BuildValue("(y#i)", inferenceOutput, inferenceSize,
-                         inferenceType);
+    std::map<std::string, mxIf::InferIn> inferIn;
+    auto info = infer->get_info();
+
+    mxIf::MemoryHandle bgr_hndl =
+        m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
+
+    if (device.deviceName == "/camera1")
+    {
+      currentWidth = bgr_hndl.width;
+      currentHeight = bgr_hndl.height;
+      currentImage = (uint8_t *)malloc(bgr_hndl.bufSize);
+      currentSize = bgr_hndl.bufSize;
+      assert(nullptr != currentImage);
+      bgr_hndl.TransferTo(currentImage);
+
+      mxIf::InferIn inferReq = {
+          bgr_hndl,
+          mxIf::PREPROCESS_ROI{0, 0, bgr_hndl.width, bgr_hndl.height}};
+      for (const auto &input_name : info.first)
+      {
+        inferIn.insert(std::make_pair(input_name, inferReq));
+      }
+      infer->Enqueue(inferIn);
+    }
+    else
+    {
+      // printf("%s\n", device.deviceName.c_str());
+      // device.printBufferAddress();
+
+      for (int i = 0; i < device.samples; i++)
+      {
+        usbCapture(device.fd, device.dst, device.n_buffers, &device.buffers,
+                   device.width, device.height);
+      }
+
+      // mxIf::MemoryHandle out_handle;
+      // std::shared_ptr<mxIf::MemoryWriteBlock> m_writer;
+      // m_writer.reset(new mxIf::MemoryWriteBlock);
+      // mxIf::MemoryHandle tensor_hndl;
+      // tensor_hndl.pBuf = (uint8_t *)device.dst;
+      // tensor_hndl.bufSize = device.width * device.height * 3 * sizeof(char);
+      // tensor_hndl.type = mxIf::MemoryHandle::Types::LocalMem;
+      // currentWidth = tensor_hndl.width;
+      // currentHeight = tensor_hndl.height;
+      // currentImage = (uint8_t *)malloc(tensor_hndl.bufSize);
+      // currentSize = tensor_hndl.bufSize;
+      // assert(nullptr != currentImage);
+      // tensor_hndl.TransferTo(currentImage);
+      // out_handle = m_writer->Write(tensor_hndl);
+
+      // mxIf::InferIn inferRe = {out_handle, mxIf::PREPROCESS_ROI{0, 0,
+      // tensor_hndl.width, tensor_hndl.height}};
+
+      // for (const auto &input_name : info.first)
+      // {
+      //   inferIn.insert(std::make_pair(input_name, inferRe));
+      // }
+
+      // free(bgr_hndl.pBuf);
+      void *tmp = bgr_hndl.pBuf;
+      bgr_hndl.pBuf = (uint8_t *)device.dst;
+      bgr_hndl.bufSize = device.width * device.height * 3 * sizeof(char);
+      bgr_hndl.width = device.width;
+      bgr_hndl.height = device.height;
+      currentWidth = bgr_hndl.width;
+      currentHeight = bgr_hndl.height;
+      // uint8_t *img = (uint8_t *)malloc(bgr_hndl.bufSize);
+      // if (!img)
+      // {
+      //   PyErr_SetString(PyExc_TypeError, "Memory allocation for image
+      //   failed"); return NULL;
+      // }
+      // currentImage = img;
+      currentSize = bgr_hndl.bufSize;
+      // assert(nullptr != currentImage);
+      // bgr_hndl.TransferTo(currentImage);
+      currentImage = (uint8_t *)device.dst;
+
+      mxIf::InferIn inferReq = {
+          bgr_hndl,
+          mxIf::PREPROCESS_ROI{0, 0, bgr_hndl.width, bgr_hndl.height}};
+
+      for (const auto &input_name : info.first)
+      {
+        inferIn.insert(std::make_pair(input_name, inferReq));
+      }
+
+      infer->Enqueue(inferIn);
+      bgr_hndl.pBuf = tmp;
+
+      // tensor_writer.Release(raw_tensor_rmt_hndl);
+    }
+
+    std::map<std::string, mxIf::MemoryHandle> nn_out = infer->GetNextOutput();
+
+    const auto &output_shapes = infer->get_output_shapes();
+    std::vector<int> inferenceTypes;
+    for (const auto &output_shape : output_shapes)
+    {
+      inferenceType = static_cast<std::uint32_t>(output_shape.data_type);
+      inferenceTypes.push_back(inferenceType);
+    }
+    // printf("Output datatype: %d\n", type);
+    auto output_names = infer->get_info().second;
+    unsigned int infIndex = 0;
+    unsigned int resultsCount = output_names.size();
+    PyObject *inferenceResults = PyList_New(resultsCount);
+    for (const std::string &output_name : output_names)
+    {
+      auto nn_hndl = nn_out[output_name];
+
+      // printf("NN: name=%s size=%d; seqNo=%ld; ts=%ld\n", output_name.data(),
+      //        nn_hndl.bufSize, nn_hndl.seqNo, nn_hndl.ts);
+
+      inferenceOutput = (uint8_t *)malloc(nn_hndl.bufSize);
+      assert(nullptr != inferenceOutput);
+      nn_hndl.TransferTo(inferenceOutput);
+      inferenceSize = nn_hndl.bufSize;
+      int inType = inferenceTypes[infIndex];
+      PyObject *in = Py_BuildValue("y#", inferenceOutput, inferenceSize);
+      if (inType == 0)
+      {
+        PyObject *inf = PyArray_FromBuffer(in, PyArray_DescrFromType(NPY_FLOAT16), inferenceSize / 2, 0);
+        PyList_SetItem(inferenceResults, infIndex, inf);
+      }
+      else if (inType == 1)
+      {
+        PyObject *inf = PyArray_FromBuffer(in, PyArray_DescrFromType(NPY_UINT8), inferenceSize, 0);
+        PyList_SetItem(inferenceResults, infIndex, inf);
+      }
+      else if (inType == 2)
+      {
+        PyObject *inf = PyArray_FromBuffer(in, PyArray_DescrFromType(NPY_INT32), inferenceSize / 4, 0);
+        PyList_SetItem(inferenceResults, infIndex, inf);
+      }
+      else if (inType == 3)
+      {
+        PyObject *inf = PyArray_FromBuffer(in, PyArray_DescrFromType(NPY_FLOAT32), inferenceSize / 4, 0);
+        PyList_SetItem(inferenceResults, infIndex, inf);
+      }
+      else if (inType == 4)
+      {
+        PyObject *inf = PyArray_FromBuffer(in, PyArray_DescrFromType(NPY_INT8), inferenceSize, 0);
+        PyList_SetItem(inferenceResults, infIndex, inf);
+      }
+      else
+      {
+      }
+      Py_DECREF(in);
+      free(inferenceOutput);
+      infIndex++;
+    }
+    if (returnImage == 1)
+    {
+      npy_intp dims[3] = {3, currentHeight, currentWidth};
+      PyObject *res = PyArray_SimpleNew(3, dims, NPY_UINT8);
+      memcpy(PyArray_DATA(res), currentImage, currentSize);
+      if (device.deviceName == "/camera1")
+      {
+        free(currentImage);
+      }
+      PyObject *result = Py_BuildValue("(OO)", inferenceResults, res);
+      Py_DECREF(res);
+      PyList_SetItem(resultList, index, result);
+      // Py_DECREF of "result" necessary?
+    }
+    else
+    {
+      if (device.deviceName == "/camera1")
+      {
+        free(currentImage);
+      }
+      PyObject *result = Py_BuildValue("O", inferenceResults);
+      PyList_SetItem(resultList, index, result);
+      // Py_DECREF of "result" necessary?
+    }
+
+    m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
+
+    index++;
   }
+
+  return resultList;
+
+  // if (returnImage == 1)
+  // {
+  //   npy_intp dims[3] = {3, currentHeight, currentWidth};
+  //   PyObject *res = PyArray_SimpleNew(3, dims, NPY_UINT8);
+  //   memcpy(PyArray_DATA(res), currentImage, currentSize);
+  //   free(inferenceOutput);
+  //   free(currentImage);
+  //   PyObject *result = Py_BuildValue("(y#iO)", inferenceOutput,
+  //   inferenceSize, inferenceType, res); Py_DECREF(res); return result;
+  //   // return Py_BuildValue("(y#iO)", inferenceOutput, inferenceSize,
+  //   inferenceType, res);
+  // }
+  // else
+  // {
+  //   free(inferenceOutput);
+  //   free(currentImage);
+  //   return Py_BuildValue("(y#i)", inferenceOutput, inferenceSize,
+  //                        inferenceType);
+  // }
 }
 
 static PyObject *method_getframe(PyObject *self, PyObject *args)
@@ -509,7 +751,8 @@ static PyObject *method_getframe(PyObject *self, PyObject *args)
   uint8_t *pBuf = nullptr;
   uint32_t size;
 
-  mxIf::MemoryHandle bgr_hndl = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
+  mxIf::MemoryHandle bgr_hndl =
+      m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
   width = bgr_hndl.width;
   height = bgr_hndl.height;
 
@@ -532,21 +775,69 @@ static PyObject *method_getframe(PyObject *self, PyObject *args)
 static PyObject *method_startinference(PyObject *self, PyObject *args)
 {
   char *out;
-  hold = false;
-  if (!PyArg_ParseTuple(args, "s", &out))
+  PyObject *input_src = NULL;
+  // if (!PyArg_ParseTuple(args, "s", &out))
+  // {
+  //   return NULL;
+  // }
+
+  // static char *kwlist[] = {"out", "input_src", NULL};
+
+  if (!PyArg_ParseTuple(args, "sO", &out, &input_src))
   {
     return NULL;
   }
 
+  if (input_src != Py_None)
+  {
+    int listItems = PyList_Size(input_src);
+    for (int i = 0; i < listItems; i++)
+    {
+      PyObject *pItem = PyList_GetItem(input_src, i);
+      // if (!PyObject_TypeCheck(pItem, &PyBaseString_Type))
+      // {
+      //   PyErr_SetString(PyExc_TypeError, "List items must be strings");
+      //   return NULL;
+      // }
+      PyObject *encodedString =
+          PyUnicode_AsEncodedString(pItem, "UTF-8", "strict");
+      if (encodedString)
+      {
+        char *videoSrc = PyBytes_AsString(encodedString);
+        if (strcmp(videoSrc, "/camera1") == 0)
+        {
+          CaptureMetadata cap(videoSrc, strlen(videoSrc), -1, 0, 0, 0);
+          devices.push_back(cap);
+        }
+        else
+        {
+          unsigned int width = 1280;
+          unsigned int height = 720;
+          unsigned int n_buffers = 0;
+          struct buffer *buffers = NULL;
+          int fd = deviceOpen(videoSrc);
+          struct dimensions newDim = deviceInit(videoSrc, fd, width, height);
+          n_buffers = mmapInit(videoSrc, n_buffers, &buffers, fd);
+          width = newDim.width;
+          height = newDim.height;
+          captureStart(fd, n_buffers);
+          CaptureMetadata cap(videoSrc, strlen(videoSrc), fd, n_buffers, width,
+                              height);
+          cap.buffers = buffers;
+          devices.push_back(cap);
+          // cap.printBufferAddress();
+        }
+      }
+    }
+  }
+
   blob_file = (char *)malloc(strlen(out) + 1);
   strcpy(blob_file, out);
-
   // mxIf::InferBlock infer_block = mxIf::CreateInferBlock(blob_file);
   infer.reset(new mxIf::InferBlock(blob_file));
 
-  pthread_t tid;
-  inference = true;
-  pthread_create(&tid, NULL, pullThread, NULL);
+  // pthread_t tid;
+  // pthread_create(&tid, NULL, pullThread, NULL);
   return Py_BuildValue("");
 }
 
@@ -555,7 +846,7 @@ static PyMethodDef EyeMethods[] = {
      "Start model inference"},
     {"stop_inference", method_stopinference, METH_VARARGS,
      "Stop model inference"},
-    {"get_inference", method_getinference, METH_VARARGS,
+    {"get_inference", (PyCFunction)method_getinference, METH_VARARGS,
      "Gets the current model inference output"},
     {"start_recording", method_startrecording, METH_VARARGS,
      "Start Azure Eye video recording"},

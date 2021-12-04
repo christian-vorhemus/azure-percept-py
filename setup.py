@@ -21,7 +21,7 @@ def main():
     assets_path = str(path.join(path.dirname(__file__), 'iot', 'percept', 'assets'))
     numpy_include_path = path.join(path.dirname(np.__file__), "core/include")
     setup(name="azure-percept",
-          version="0.0.1",
+          version="0.0.2",
           description="Unofficial Python package to control the Azure Percept SoM",
           author="Christian Vorhemus",
           author_email="chris.vorhemus@outlook.com",
@@ -42,7 +42,8 @@ def main():
 'iot/percept/assets/libavformat.so.57', 
 'iot/percept/assets/libavutil.so.55', 'iot/percept/assets/libswresample.so.2', 'iot/percept/assets/libswscale.so.4'])],
           ext_modules=[Extension("_hardware", ["iot/percept/ext/perceptmodule.c"], extra_link_args=["-lasound", "-lpthread"]),
-                       Extension("_azureeye", ["iot/percept/ext/azureeyemodule.cpp"], include_dirs=["iot/percept/ext/include", 
+                       Extension("_azureeye", ["iot/percept/ext/azureeyemodule.cpp", "iot/percept/ext/usbcamera.c"], 
+include_dirs=["iot/percept/ext/include", 
 "iot/percept/ext/include/VPUInferBlock/host/include", "iot/percept/ext/include/XLink", 
 "iot/percept/ext/include/common/host", "iot/percept/ext/include/VPUCameraBlock/host", "iot/percept/ext/include/libavformat", "iot/percept/ext/include/libavutil", 
 "iot/percept/ext/include/libavcodec", numpy_include_path], 
