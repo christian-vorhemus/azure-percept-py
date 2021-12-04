@@ -1,4 +1,4 @@
-This is the source code for azure-percept-py - an unofficial Python library to access the sensors of Azure Percept in Python.
+This is the source code for the azure-percept package - an unofficial Python library to access the sensors of Azure Percept in Python.
 
 **IMPORTANT**: This is an experimental libray, expect bugs. If you encounter them, please [open an issue](https://github.com/christian-vorhemus/azure-percept-py/issues) on Github.
 
