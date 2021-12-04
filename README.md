@@ -47,7 +47,7 @@ print("Recording stopped")
 audio.close()
 ```
 
-Run `sudo python3 perceptaudio.py` to run the script.
+Type `sudo python3 perceptaudio.py` to run the script.
 
 ## Azure Percept Vision samples
 ### Run a machine learning model on the VPU
@@ -80,7 +80,7 @@ vision.stop_inference()
 vision.close()
 ```
 
-Run `sudo python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `vision.start_inference(blob_model_path)` will start the Azure Percept Vision Camera and those images are used as an input for `model`. To specify the input sources, pass the input_src argument, for example `vision.start_inference(blob_model_path, input_src=["/camera1", "/dev/video0"])` whereas `/camera1` identifies the Percept camera and `/dev/video0` is a conventional USB camera.  With `vision.get_inference()` the prediction results are returned, `res.inference` is a numpy array.
+Type `sudo python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `vision.start_inference(blob_model_path)` will start the Azure Percept Vision camera and those images are used as an input for the model. To specify the input sources, pass the input_src argument, for example `vision.start_inference(blob_model_path, input_src=["/camera1", "/dev/video0"])` whereas `/camera1` identifies the Percept camera and `/dev/video0` is a conventional USB camera plugged into the Percept DK.  With `vision.get_inference()` the prediction results are returned, `res.inference` is a numpy array.
 
 ### Take a picture and save it locally
 The following sample gets an image (as a numpy array) from the Azure Percept Vision device in BGR format with shape (height, width, channels) and saves it as a JPG file (you need Pillow for this sample to work: `pip3 install Pillow`)
