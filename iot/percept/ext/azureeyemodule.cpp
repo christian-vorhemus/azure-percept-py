@@ -477,6 +477,7 @@ static PyObject *method_prepareeye(PyObject *self, PyObject *args)
 
 static PyObject *method_closedevice(PyObject *self, PyObject *args)
 {
+  isOpen = false;
   camOn = false;
   sleep(1);
   mxIf::Reset();

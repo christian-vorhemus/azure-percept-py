@@ -109,7 +109,7 @@ void *record(void *args)
     if ((err = snd_pcm_readi(pcapture_handle, buffer, buffer_frames)) !=
         buffer_frames)
     {
-      fprintf(stderr, "Read from audio interface failed (%s)\n", snd_strerror(err));
+      //fprintf(stderr, "Read from audio interface failed (%s)\n", snd_strerror(err));
       break;
     }
     fwrite(buffer, sizeof(char), buffer_frames * snd_pcm_format_width(format) / 8 * channels, out);
