@@ -133,3 +133,6 @@ vision.stop_recording()
 print("Recording stopped")
 vision.close()
 ```
+
+## License
+This library is licensed under [Apache License Version 2.0](https://github.com/christian-vorhemus/azure-percept-py/blob/main/LICENSE) and uses binaries and scripts from the [OpenVINO toolkit](https://github.com/openvinotoolkit/openvino) which is as well licensed under Apache License Version 2.0. 
