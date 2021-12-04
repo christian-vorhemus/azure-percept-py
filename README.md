@@ -13,7 +13,7 @@ Make sure the following is installed on your Percept device or the container you
 - Numpy: `sudo pip3 install numpy`
 
 ## Install
-The following guide assumes you run the code directly on the Percept board (CBL Mariner OS). You can also create a docker image and install the Python module there, in that case make sure that you mount the host's /dev/bus/usb into the image.
+The following guide assumes you run the code directly on the Percept board (CBL Mariner OS):
 - Clone the source code on your Percept device `git clone https://github.com/christian-vorhemus/azure-percept-py.git` (if you're accessing the repo from Azure Devops use `git clone https://chrysalis-innersource@dev.azure.com/chrysalis-innersource/Azure%20Percept%20Python%20library/_git/Azure%20Percept%20Python%20library`)
 - Open a terminal and cd into `azure-percept-py`
 - Run `sudo pip3 install .`
@@ -51,7 +51,7 @@ Type `sudo python3 perceptaudio.py` to run the script.
 
 ## Azure Percept Vision samples
 ### Run a machine learning model on the VPU
-The following sample shows how you can run a model on the Azure Vision Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [ResNet-18](https://github.com/onnx/models/raw/master/vision/classification/resnet/model/resnet18-v1-7.onnx). Create a new file `perceptvision.py` with the following content
+The following sample shows how to run a model on the Azure Vision Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [ResNet-18](https://github.com/onnx/models/raw/master/vision/classification/resnet/model/resnet18-v1-7.onnx). Create a new file `perceptvision.py` with the following content
 
 ```python
 from azure.iot.percept import VisionDevice, InferenceResult
@@ -80,7 +80,7 @@ vision.stop_inference()
 vision.close()
 ```
 
-Type `sudo python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `vision.start_inference(blob_model_path)` will start the Azure Percept Vision camera and those images are used as an input for the model. To specify the input sources, pass the input_src argument, for example `vision.start_inference(blob_model_path, input_src=["/camera1", "/dev/video0"])` whereas `/camera1` identifies the Percept camera and `/dev/video0` is a conventional USB camera plugged into the Percept DK.  With `vision.get_inference()` the prediction results are returned, `res.inference` is a numpy array.
+Type `sudo python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `vision.start_inference(blob_model_path)` will start the Azure Percept Vision camera as well as the VPU. To specify the input camera sources, pass the `input_src` argument, for example `vision.start_inference(blob_model_path, input_src=["/camera1", "/dev/video0"])` whereas `/camera1` identifies the Percept camera and `/dev/video0` is a conventional USB camera plugged into the Percept DK.  With `vision.get_inference()` the prediction results are returned as an `InferenceResult` object, the prediction is stored as a numpy array in `res.inference`.
 
 ### Take a picture and save it locally
 The following sample gets an image (as a numpy array) from the Azure Percept Vision device in BGR format with shape (height, width, channels) and saves it as a JPG file (you need Pillow for this sample to work: `pip3 install Pillow`)
