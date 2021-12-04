@@ -54,7 +54,7 @@ Run `sudo python3 perceptaudio.py` to run the script.
 The following sample shows how you can run a model on the Azure Vision Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [ResNet-18](https://github.com/onnx/models/raw/master/vision/classification/resnet/model/resnet18-v1-7.onnx). Create a new file `perceptvision.py` with the following content
 
 ```python
-from azure.iot.percept import VisionDevice
+from azure.iot.percept import VisionDevice, InferenceResult
 import time
 import numpy
 
@@ -69,17 +69,18 @@ while True:
 
 print("Authentication successful!")
 
-# this will convert a ONNX model to a model file with the same name 
+# this will convert a ONNX model to a model file with the same name
 # and a .blob suffix to the output directory "/path/to"
-vision.convert_model("/path/to/resnet18-v1-7.onnx", "/path/to") 
+vision.convert_model("/path/to/resnet18-v1-7.onnx", output_dir="/path/to")
 vision.start_inference("/path/to/resnet18-v1-7.blob")
-arr = vision.get_inference() # arr is a numpy array that contains the model output
-print(arr.shape)
+res: InferenceResult = vision.get_inference(return_image=True)
+print(res.inference)
+print(res.image)
 vision.stop_inference()
 vision.close()
 ```
 
-Run `sudo python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `vision.start_inference(model)` will start the Azure Percept Vision Camera and those images are used as an input for `model`. Then `vision.get_inference()` is used to get prediction results as numpy vectors from the device.
+Run `sudo python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `vision.start_inference(blob_model_path)` will start the Azure Percept Vision Camera and those images are used as an input for `model`. To specify the input sources, pass the input_src argument, for example `vision.start_inference(blob_model_path, input_src=["/camera1", "/dev/video0"])` whereas `/camera1` identifies the Percept camera and `/dev/video0` is a conventional USB camera.  With `vision.get_inference()` the prediction results are returned, `res.inference` is a numpy array.
 
 ### Take a picture and save it locally
 The following sample gets an image (as a numpy array) from the Azure Percept Vision device in BGR format with shape (height, width, channels) and saves it as a JPG file (you need Pillow for this sample to work: `pip3 install Pillow`)
