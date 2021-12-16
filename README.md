@@ -1,6 +1,6 @@
 This is the source code for the azure-percept package - an unofficial Python library to access the sensors of Azure Percept in Python.
 
-**IMPORTANT**: This is an experimental privately written libray, expect bugs. If you encounter them, please [open an issue](https://github.com/christian-vorhemus/azure-percept-py/issues) on Github.
+**IMPORTANT**: This is an experimental privately written libray without any warranty, expect bugs. If you encounter them, please [open an issue](https://github.com/christian-vorhemus/azure-percept-py/issues) on Github.
 
 ## Connect to your Percept
 
@@ -14,7 +14,7 @@ Make sure the following is installed on your Percept device or the container you
 
 ## Install
 The following guide assumes you run the code directly on the Percept board (CBL Mariner OS):
-- Clone the source code on your Percept device `git clone https://github.com/christian-vorhemus/azure-percept-py.git` (if you're accessing the repo from Azure Devops use `git clone https://chrysalis-innersource@dev.azure.com/chrysalis-innersource/Azure%20Percept%20Python%20library/_git/Azure%20Percept%20Python%20library`)
+- Clone the source code on your Percept device `git clone https://github.com/christian-vorhemus/azure-percept-py.git`
 - Open a terminal and cd into `azure-percept-py`
 - Run `sudo pip3 install .`
 - To uninstall run `sudo pip3 uninstall azure-percept`
@@ -80,7 +80,41 @@ vision.stop_inference()
 vision.close()
 ```
 
-Type `sudo python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `vision.start_inference(blob_model_path)` will start the Azure Percept Vision camera as well as the VPU. To specify the input camera sources, pass the `input_src` argument, for example `vision.start_inference(blob_model_path, input_src=["/dev/video0", "/dev/video2"])` whereas `/camera1` would identify the Percept module camera and `/dev/video0`, `/dev/video2` are conventional USB cameras plugged into the Percept DK.  With `vision.get_inference()` the prediction results are returned as an `InferenceResult` object, the prediction is stored as a numpy array in `res.inference`.
+Type `sudo python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `vision.start_inference(blob_model_path)` will start the Azure Percept Vision camera as well as the VPU. To specify the input camera sources, pass the `input_src` argument, for example `vision.start_inference(blob_model_path, input_src=["/dev/video0", "/dev/video2"])` whereas `/camera1` would identify the Percept module camera and `/dev/video0`, `/dev/video2` are conventional USB cameras plugged into the Percept DK.  With `vision.get_inference()` the prediction results are returned as an `InferenceResult` object or as a list of `InferenceResult` objects in case of multiple input sources. The prediction is stored as a numpy array in `res.inference`.
+
+It's also possible to use a local image file instead of reading from a camera device. To do so, convert the image into a BGR sequence of bytes and set the `input` parameter of `get_inference()`:
+
+```python
+from azure.iot.percept import VisionDevice, InferenceResult
+from PIL import Image
+import numpy as np
+
+vision = VisionDevice()
+
+print("Authenticating sensor...")
+while True:
+    if vision.is_ready() is True:
+        break
+    else:
+        time.sleep(1)
+
+print("Authentication successful!")
+
+image = Image.open("./<yourfile>.jpg")
+image = np.array(image)
+image = np.moveaxis(image, -1, 0)
+r = image[0].tobytes()
+g = image[1].tobytes()
+b = image[2].tobytes()
+
+img = b+g+r
+
+vision.start_inference("<model>.blob")
+res: InferenceResult = vision.get_inference(input=img)
+print(res.inference)
+vision.stop_inference()
+vision.close()
+```
 
 During model conversion you might get an error like `Cannot create X layer from unsupported opset`. This indicates that the model contains a layer that can't be converted to a model definition the VPU can process. For a list of supported layers see [here](https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers.html).
 
