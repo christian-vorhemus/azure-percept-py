@@ -82,6 +82,8 @@ vision.close()
 
 Type `sudo python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `vision.start_inference(blob_model_path)` will start the Azure Percept Vision camera as well as the VPU. To specify the input camera sources, pass the `input_src` argument, for example `vision.start_inference(blob_model_path, input_src=["/dev/video0", "/dev/video2"])` whereas `/camera1` would identify the Percept module camera and `/dev/video0`, `/dev/video2` are conventional USB cameras plugged into the Percept DK.  With `vision.get_inference()` the prediction results are returned as an `InferenceResult` object or as a list of `InferenceResult` objects in case of multiple input sources. The prediction is stored as a numpy array in `res.inference`.
 
+### Process local image files on the VPU
+
 It's also possible to use a local image file instead of reading from a camera device. To do so, convert the image into a BGR sequence of bytes and pass the bytes as the `input` argument of `get_inference()`:
 
 ```python
