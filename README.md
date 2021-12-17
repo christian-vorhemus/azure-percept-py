@@ -86,7 +86,7 @@ During model conversion you might get an error like `Cannot create X layer from 
 
 ### Process local image files on the VPU
 
-It's also possible to use a local image file instead of reading from a camera device. To do so, convert the image into a BGR sequence of bytes and pass the bytes as the `input` argument of `get_inference()`:
+It's also possible to use a local image file instead of reading from a camera device. To do so, convert the image into a BGR sequence of bytes and pass them in the `input` argument of `get_inference()`:
 
 ```python
 from azure.iot.percept import VisionDevice, InferenceResult
