@@ -8,7 +8,7 @@ Please refer to the official documentation to learn how to connect to the device
 
 ## Prerequisites
 Make sure the following is installed on your Percept device or the container you want to use
-- libalsa, libusb, gcc, binutils, Python headers, setuptools and pip (run `sudo yum install -y alsa-lib-devel libusb-devel gcc glibc-devel kernel-devel kernel-headers binutils python3-devel python3-setuptools python3-pip`)
+- libalsa, libusb, gcc, binutils, Python headers, setuptools and pip (run `sudo yum install -y git alsa-lib-devel libusb-devel gcc glibc-devel kernel-devel kernel-headers binutils python3-devel python3-setuptools python3-pip`)
 - pthreads (libpthread should be available on most OS by default, check your library path - for example /usr/lib/ - to be sure)
 - Numpy: `sudo pip3 install numpy`
 
