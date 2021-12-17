@@ -177,21 +177,26 @@ class VisionDevice(AzurePercept):
         self._inference_running = False
         _azureeye.stop_inference()
 
-    def get_inference(self, return_image=False):
+    def get_inference(self, return_image=False, input=b'', input_shape=(720, 1280)):
         """
-        Returns the model inference output as a numpy array. The array length depends on the model specification.
+        Returns the model inference output as a InferenceResult object.
         :param bool return_image:
             If return_image is True, the image from the camera which was used for model inference is returned as well
+        :param bytes input:
+            If passed, the input (a concatonated B+G+R byte string) is used as input image for the VPU
+        :param tuple input_shapes:
+            Defines the (height, width) of the input image
         """
         if self._inference_running is False:
             raise Exception(
                 f"Inference not started. Call <AzureyeObject>.start_inference('/path/to/model.blob') first")
 
         totals = []
-        items = _azureeye.get_inference(return_image)
+        items = _azureeye.get_inference(
+            return_image, input, input_shape[0], input_shape[1])
 
         for i, item in enumerate(items):
-            if return_image is False:
+            if return_image is False or len(input) > 0:
                 ret = item
                 inference_dimension = len(item)
             else:
@@ -202,7 +207,7 @@ class VisionDevice(AzurePercept):
             if inference_dimension == 1:
                 ret = ret[0]
 
-            if return_image is False:
+            if return_image is False or len(input) > 0:
                 totals.append(InferenceResult(
                     self.input_src[i], ret, None, inference_dimension))
             else:

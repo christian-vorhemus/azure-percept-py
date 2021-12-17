@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
+#include <atomic>
 
 #include <iostream>
 #include <map>
@@ -46,16 +48,18 @@ char *in_file;
 void *camera_pointer = nullptr;
 std::shared_ptr<mxIf::CameraBlock> m_cam;
 std::shared_ptr<mxIf::InferBlock> infer;
+std::shared_ptr<mxIf::MemoryWriteBlock> mwriter;
 char *out_file;
 char *blob_file;
 char *fname;
 bool isRunning = false;
-bool isOpen = false;
 unsigned int inferenceSize;
 uint32_t inferenceType;
-bool camOn = false;
 int width;
 int height;
+std::atomic<bool> atomicIsOpen(false);
+std::atomic<bool> atomicCamOn(false);
+pthread_t threadH264;
 
 class CaptureMetadata
 {
@@ -80,7 +84,7 @@ public:
     this->deviceName = deviceName;
     this->width = width;
     this->height = height;
-    this->dst = (unsigned char *)malloc(width * height * 3 * sizeof(char));
+    // this->dst = (unsigned char *)malloc(width * height * 3 * sizeof(char));
   }
 
   void printBufferAddress()
@@ -278,12 +282,12 @@ void *record(void *par)
 {
   isRunning = true;
 
-  if (camOn == false)
+  if (atomicCamOn == false)
   {
     auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
     m_cam.reset(new mxIf::CameraBlock(cam_mode));
     m_cam->Start();
-    camOn = true;
+    atomicCamOn = true;
   }
 
   std::string f = randomString(16);
@@ -333,7 +337,7 @@ void *record(void *par)
 void *h264Thread(void *par)
 {
   // mxIf::CameraBlock *camera_block = (mxIf::CameraBlock *)par;
-  while (isOpen)
+  while (atomicIsOpen)
   {
     mxIf::MemoryHandle h264_hndl =
         m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::H264);
@@ -344,91 +348,6 @@ void *h264Thread(void *par)
   }
   return 0;
 }
-
-// void *pullThread(void *par)
-// {
-//   // char *out = (char *)par;
-//   isRunning = true;
-//   // tmp = tmpfile();
-//   if (camOn == false)
-//   {
-//     auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
-//     m_cam.reset(new mxIf::CameraBlock(cam_mode));
-//     m_cam->Start();
-//     camOn = true;
-//     pthread_t threadH264;
-//     int ret = pthread_create(&threadH264, NULL, h264Thread, NULL);
-//   }
-//   FILE *tmp;
-
-//   while (isRunning)
-//   {
-//     mxIf::MemoryHandle bgr_hndl =
-//         m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
-//     std::map<std::string, mxIf::InferIn> inferIn;
-//     auto info = infer->get_info();
-//     currentWidth = bgr_hndl.width;
-//     currentHeight = bgr_hndl.height;
-//     currentImage = (uint8_t *)malloc(bgr_hndl.bufSize);
-//     currentSize = bgr_hndl.bufSize;
-//     assert(nullptr != currentImage);
-//     bgr_hndl.TransferTo(currentImage);
-//     mxIf::InferIn inferReq = {
-//         bgr_hndl, mxIf::PREPROCESS_ROI{0, 0, bgr_hndl.width,
-//         bgr_hndl.height}};
-//     for (const auto &input_name : info.first)
-//     {
-//       inferIn.insert(std::make_pair(input_name, inferReq));
-//     }
-
-//     infer->Enqueue(inferIn);
-
-//     std::map<std::string, mxIf::MemoryHandle> nn_out =
-//     infer->GetNextOutput();
-
-//     const auto &output_shapes = infer->get_output_shapes();
-//     for (const auto &output_shape : output_shapes)
-//     {
-//       inferenceType = static_cast<std::uint32_t>(output_shape.data_type);
-//     }
-//     // printf("Output datatype: %d\n", type);
-//     auto output_names = infer->get_info().second;
-//     for (const std::string &output_name : output_names)
-//     {
-//       auto nn_hndl = nn_out[output_name];
-//       inferenceOutput = (uint8_t *)malloc(nn_hndl.bufSize);
-//       assert(nullptr != inferenceOutput);
-//       nn_hndl.TransferTo(inferenceOutput);
-//       inferenceSize = nn_hndl.bufSize;
-//     }
-
-//     while (hold)
-//     {
-//     }
-//     free(currentImage);
-//     // Not freeing this will cause a memory leak, however, otherwise the
-//     // inference output is garbage
-//     free(inferenceOutput);
-
-//     m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
-//   }
-//   if (tmp)
-//   {
-//     fclose(tmp);
-//   }
-//   free(blob_file);
-//   // if (store)
-//   // {
-//   //   int res = convertVideo(in_file, out_file);
-//   //   if (res != 0)
-//   //   {
-//   //     printf("Converting video failed\n");
-//   //     exit(1);
-//   //   }
-//   //   free(out_file);
-//   // }
-//   return 0;
-// }
 
 static PyObject *method_startrecording(PyObject *self, PyObject *args)
 {
@@ -446,12 +365,6 @@ static PyObject *method_startrecording(PyObject *self, PyObject *args)
 
 static PyObject *method_stoprecording(PyObject *self, PyObject *args)
 {
-  // if (tmp == NULL)
-  // {
-  //   printf("Temporary h264 packets file is not available");
-  //   PyErr_SetString(PyExc_TypeError, "Temporary h264 packets file is not
-  //   available"); return NULL;
-  // }
   isRunning = false;
   return Py_BuildValue("");
 }
@@ -467,7 +380,7 @@ static PyObject *method_prepareeye(PyObject *self, PyObject *args)
   mvLogDefaultLevelSet(MVLOG_ERROR);
   mxIf::Boot(mvcmdFile);
 
-  isOpen = true;
+  atomicIsOpen = true;
   // auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
   // m_cam.reset(new mxIf::CameraBlock(cam_mode));
   // m_cam->Start();
@@ -477,8 +390,9 @@ static PyObject *method_prepareeye(PyObject *self, PyObject *args)
 
 static PyObject *method_closedevice(PyObject *self, PyObject *args)
 {
-  isOpen = false;
-  camOn = false;
+  atomicIsOpen = false;
+  atomicCamOn = false;
+  pthread_cancel(threadH264);
   sleep(1);
   mxIf::Reset();
   return Py_BuildValue("");
@@ -493,11 +407,10 @@ static PyObject *method_stopinference(PyObject *self, PyObject *args)
     {
       deviceUninit(device.n_buffers, device.buffers);
       deviceClose(device.fd);
-      // device.clear();
     }
   }
   isRunning = false;
-  isOpen = false;
+  atomicIsOpen = false;
   return Py_BuildValue("");
 }
 
@@ -510,25 +423,33 @@ static PyObject *method_getinference(PyObject *self, PyObject *args)
   uint8_t *currentImage;
   unsigned int currentSize;
   uint8_t *inferenceOutput;
+  Py_buffer buffer;
+  PyObject *input;
+  int imHeight;
+  int imWidth;
 
-  if (!PyArg_ParseTuple(args, "i", &returnImage))
+  if (!PyArg_ParseTuple(args, "iy*ii", &returnImage, &buffer, &imHeight, &imWidth))
   {
     return NULL;
   }
+  input = PyBytes_FromStringAndSize((char *)buffer.buf, buffer.len);
+  PyBuffer_Release(&buffer);
+  char *inputBytes = PyBytes_AsString(input);
+
+  size_t le = (size_t)buffer.len;
 
   PyObject *resultList = PyList_New(devices.size());
 
-  int index = 0;
-  if (camOn == false)
+  if (atomicCamOn == false)
   {
     auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
     m_cam.reset(new mxIf::CameraBlock(cam_mode));
     m_cam->Start();
-    camOn = true;
-    pthread_t threadH264;
+    atomicCamOn = true;
     int ret = pthread_create(&threadH264, NULL, h264Thread, NULL);
   }
 
+  int index = 0;
   for (CaptureMetadata device : devices)
   {
     std::map<std::string, mxIf::InferIn> inferIn;
@@ -539,92 +460,98 @@ static PyObject *method_getinference(PyObject *self, PyObject *args)
 
     if (device.deviceName == "/camera1")
     {
-      currentWidth = bgr_hndl.width;
-      currentHeight = bgr_hndl.height;
-      currentImage = (uint8_t *)malloc(bgr_hndl.bufSize);
-      currentSize = bgr_hndl.bufSize;
-      assert(nullptr != currentImage);
-      bgr_hndl.TransferTo(currentImage);
-
-      mxIf::InferIn inferReq = {
-          bgr_hndl,
-          mxIf::PREPROCESS_ROI{0, 0, bgr_hndl.width, bgr_hndl.height}};
-      for (const auto &input_name : info.first)
+      if (le > 0)
       {
-        inferIn.insert(std::make_pair(input_name, inferReq));
+        mxIf::MemoryHandle out_handle;
+        mxIf::MemoryHandle tensor_hndl;
+        tensor_hndl.pBuf = inputBytes;
+        tensor_hndl.rmtMemHndl = 0;
+        tensor_hndl.format = mxIf::MemoryHandle::Formats::BGRp;
+        tensor_hndl.bufSize = le * sizeof(char);
+        tensor_hndl.type = mxIf::MemoryHandle::Types::LocalMem;
+        tensor_hndl.height = imHeight;
+        tensor_hndl.width = imWidth;
+        tensor_hndl.seqNo = index;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        int timemill = (tv.tv_sec) * 1000 + (tv.tv_usec);
+        tensor_hndl.ts = timemill;
+        currentImage = nullptr;
+        currentSize = le * sizeof(char);
+
+        out_handle = mwriter->Write(tensor_hndl);
+
+        mxIf::InferIn inferRe = {out_handle, mxIf::PREPROCESS_ROI{0, 0,
+                                                                  tensor_hndl.width, tensor_hndl.height}};
+
+        for (const auto &input_name : info.first)
+        {
+          inferIn.insert(std::make_pair(input_name, inferRe));
+        }
+
+        infer->Enqueue(inferIn);
+        mwriter->Release(out_handle);
+        Py_DECREF(input);
       }
-      infer->Enqueue(inferIn);
+      else
+      {
+        currentWidth = bgr_hndl.width;
+        currentHeight = bgr_hndl.height;
+        currentImage = (uint8_t *)malloc(bgr_hndl.bufSize);
+        currentSize = bgr_hndl.bufSize;
+        assert(nullptr != currentImage);
+        mxIf::InferIn inferReq = {
+            bgr_hndl,
+            mxIf::PREPROCESS_ROI{0, 0, bgr_hndl.width, bgr_hndl.height}};
+        for (const auto &input_name : info.first)
+        {
+          inferIn.insert(std::make_pair(input_name, inferReq));
+        }
+        infer->Enqueue(inferIn);
+        bgr_hndl.TransferTo(currentImage);
+      }
     }
     else
     {
-      // printf("%s\n", device.deviceName.c_str());
-      // device.printBufferAddress();
-
+      device.dst = (unsigned char *)malloc(device.width * device.height * 3 * sizeof(char));
       for (int i = 0; i < device.samples; i++)
       {
         usbCapture(device.fd, device.dst, device.n_buffers, &device.buffers,
                    device.width, device.height);
       }
-
-      // mxIf::MemoryHandle out_handle;
-      // std::shared_ptr<mxIf::MemoryWriteBlock> m_writer;
-      // m_writer.reset(new mxIf::MemoryWriteBlock);
-      // mxIf::MemoryHandle tensor_hndl;
-      // tensor_hndl.pBuf = (uint8_t *)device.dst;
-      // tensor_hndl.bufSize = device.width * device.height * 3 * sizeof(char);
-      // tensor_hndl.type = mxIf::MemoryHandle::Types::LocalMem;
-      // currentWidth = tensor_hndl.width;
-      // currentHeight = tensor_hndl.height;
-      // currentImage = (uint8_t *)malloc(tensor_hndl.bufSize);
-      // currentSize = tensor_hndl.bufSize;
-      // assert(nullptr != currentImage);
-      // tensor_hndl.TransferTo(currentImage);
-      // out_handle = m_writer->Write(tensor_hndl);
-
-      // mxIf::InferIn inferRe = {out_handle, mxIf::PREPROCESS_ROI{0, 0,
-      // tensor_hndl.width, tensor_hndl.height}};
-
-      // for (const auto &input_name : info.first)
-      // {
-      //   inferIn.insert(std::make_pair(input_name, inferRe));
-      // }
-
-      // free(bgr_hndl.pBuf);
-      void *tmp = bgr_hndl.pBuf;
-      bgr_hndl.pBuf = (uint8_t *)device.dst;
-      bgr_hndl.bufSize = device.width * device.height * 3 * sizeof(char);
-      bgr_hndl.width = device.width;
-      bgr_hndl.height = device.height;
-      currentWidth = bgr_hndl.width;
-      currentHeight = bgr_hndl.height;
-      // uint8_t *img = (uint8_t *)malloc(bgr_hndl.bufSize);
-      // if (!img)
-      // {
-      //   PyErr_SetString(PyExc_TypeError, "Memory allocation for image
-      //   failed"); return NULL;
-      // }
-      // currentImage = img;
-      currentSize = bgr_hndl.bufSize;
-      // assert(nullptr != currentImage);
-      // bgr_hndl.TransferTo(currentImage);
-      currentImage = (uint8_t *)device.dst;
-
-      mxIf::InferIn inferReq = {
-          bgr_hndl,
-          mxIf::PREPROCESS_ROI{0, 0, bgr_hndl.width, bgr_hndl.height}};
-
+      mxIf::MemoryHandle out_handle;
+      mxIf::MemoryHandle tensor_hndl;
+      tensor_hndl.pBuf = device.dst;
+      memcpy(tensor_hndl.pBuf, device.dst, device.width * device.height * 3 * sizeof(char));
+      tensor_hndl.rmtMemHndl = 0;
+      tensor_hndl.format = mxIf::MemoryHandle::Formats::BGRp;
+      tensor_hndl.bufSize = device.width * device.height * 3 * sizeof(char);
+      tensor_hndl.type = mxIf::MemoryHandle::Types::LocalMem;
+      tensor_hndl.height = device.height;
+      tensor_hndl.width = device.width;
+      currentWidth = tensor_hndl.width;
+      currentHeight = tensor_hndl.height;
+      currentImage = (uint8_t *)malloc(tensor_hndl.bufSize);
+      currentSize = tensor_hndl.bufSize;
+      assert(nullptr != currentImage);
+      out_handle = mwriter->Write(tensor_hndl);
+      mxIf::InferIn inferRe = {out_handle, mxIf::PREPROCESS_ROI{0, 0,
+                                                                tensor_hndl.width, tensor_hndl.height}};
       for (const auto &input_name : info.first)
       {
-        inferIn.insert(std::make_pair(input_name, inferReq));
+        inferIn.insert(std::make_pair(input_name, inferRe));
       }
 
+      tensor_hndl.TransferTo(currentImage);
       infer->Enqueue(inferIn);
-      bgr_hndl.pBuf = tmp;
-
-      // tensor_writer.Release(raw_tensor_rmt_hndl);
+      mwriter->Release(out_handle);
     }
 
+    // struct timeval stop, start;
+    // gettimeofday(&start, NULL);
     std::map<std::string, mxIf::MemoryHandle> nn_out = infer->GetNextOutput();
+    // gettimeofday(&stop, NULL);
+    // printf("Inference duration: %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec);
 
     const auto &output_shapes = infer->get_output_shapes();
     std::vector<int> inferenceTypes;
@@ -683,15 +610,14 @@ static PyObject *method_getinference(PyObject *self, PyObject *args)
       free(inferenceOutput);
       infIndex++;
     }
-    if (returnImage == 1)
+    if (returnImage == 1 && le == 0)
     {
       npy_intp dims[3] = {3, currentHeight, currentWidth};
       PyObject *res = PyArray_SimpleNew(3, dims, NPY_UINT8);
       memcpy(PyArray_DATA(res), currentImage, currentSize);
-      if (device.deviceName == "/camera1")
-      {
-        free(currentImage);
-      }
+
+      free(currentImage);
+
       PyObject *result = Py_BuildValue("(OO)", inferenceResults, res);
       Py_DECREF(res);
       PyList_SetItem(resultList, index, result);
@@ -699,10 +625,7 @@ static PyObject *method_getinference(PyObject *self, PyObject *args)
     }
     else
     {
-      if (device.deviceName == "/camera1")
-      {
-        free(currentImage);
-      }
+      free(currentImage);
       PyObject *result = Py_BuildValue("O", inferenceResults);
       PyList_SetItem(resultList, index, result);
       // Py_DECREF of "result" necessary?
@@ -714,37 +637,16 @@ static PyObject *method_getinference(PyObject *self, PyObject *args)
   }
 
   return resultList;
-
-  // if (returnImage == 1)
-  // {
-  //   npy_intp dims[3] = {3, currentHeight, currentWidth};
-  //   PyObject *res = PyArray_SimpleNew(3, dims, NPY_UINT8);
-  //   memcpy(PyArray_DATA(res), currentImage, currentSize);
-  //   free(inferenceOutput);
-  //   free(currentImage);
-  //   PyObject *result = Py_BuildValue("(y#iO)", inferenceOutput,
-  //   inferenceSize, inferenceType, res); Py_DECREF(res); return result;
-  //   // return Py_BuildValue("(y#iO)", inferenceOutput, inferenceSize,
-  //   inferenceType, res);
-  // }
-  // else
-  // {
-  //   free(inferenceOutput);
-  //   free(currentImage);
-  //   return Py_BuildValue("(y#i)", inferenceOutput, inferenceSize,
-  //                        inferenceType);
-  // }
 }
 
 static PyObject *method_getframe(PyObject *self, PyObject *args)
 {
-  if (camOn == false)
+  if (atomicCamOn == false)
   {
     auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
     m_cam.reset(new mxIf::CameraBlock(cam_mode));
     m_cam->Start();
-    camOn = true;
-    pthread_t threadH264;
+    atomicCamOn = true;
     int ret = pthread_create(&threadH264, NULL, h264Thread, NULL);
   }
   int width;
@@ -777,12 +679,6 @@ static PyObject *method_startinference(PyObject *self, PyObject *args)
 {
   char *out;
   PyObject *input_src = NULL;
-  // if (!PyArg_ParseTuple(args, "s", &out))
-  // {
-  //   return NULL;
-  // }
-
-  // static char *kwlist[] = {"out", "input_src", NULL};
 
   if (!PyArg_ParseTuple(args, "sO", &out, &input_src))
   {
@@ -795,11 +691,6 @@ static PyObject *method_startinference(PyObject *self, PyObject *args)
     for (int i = 0; i < listItems; i++)
     {
       PyObject *pItem = PyList_GetItem(input_src, i);
-      // if (!PyObject_TypeCheck(pItem, &PyBaseString_Type))
-      // {
-      //   PyErr_SetString(PyExc_TypeError, "List items must be strings");
-      //   return NULL;
-      // }
       PyObject *encodedString =
           PyUnicode_AsEncodedString(pItem, "UTF-8", "strict");
       if (encodedString)
@@ -836,6 +727,7 @@ static PyObject *method_startinference(PyObject *self, PyObject *args)
   strcpy(blob_file, out);
   // mxIf::InferBlock infer_block = mxIf::CreateInferBlock(blob_file);
   infer.reset(new mxIf::InferBlock(blob_file));
+  mwriter.reset(new mxIf::MemoryWriteBlock);
 
   // pthread_t tid;
   // pthread_create(&tid, NULL, pullThread, NULL);

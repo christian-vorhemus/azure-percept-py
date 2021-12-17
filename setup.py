@@ -21,7 +21,7 @@ def main():
     assets_path = str(path.join(path.dirname(__file__), 'iot', 'percept', 'assets'))
     numpy_include_path = path.join(path.dirname(np.__file__), "core/include")
     setup(name="azure-percept",
-          version="0.0.2",
+          version="0.0.3",
           description="Unofficial Python package to control the Azure Percept SoM",
           author="Christian Vorhemus",
           author_email="chris.vorhemus@outlook.com",
@@ -35,8 +35,8 @@ def main():
           },
           data_files=[('/lib64', ['iot/percept/assets/plugins.xml']), ('/usr/lib', ['iot/percept/assets/libmyriadPlugin.so', 
 'iot/percept/assets/libngraph.so', 
-'iot/percept/assets/libswresample.so', 'iot/percept/assets/libmxIf.so', 
-'iot/percept/assets/libmxIf.a', 'iot/percept/assets/libavcodec.so.57', 'iot/percept/assets/libinference_engine.so', 
+'iot/percept/assets/libswresample.so', 'iot/percept/assets/libmxIf.so', 'iot/percept/assets/libavcodec.so.57', 
+'iot/percept/assets/libinference_engine.so', 
 'iot/percept/assets/libinference_engine_ir_reader.so', 'iot/percept/assets/libinference_engine_legacy.so', 
 'iot/percept/assets/libinference_engine_transformations.so', 
 'iot/percept/assets/libavformat.so.57', 
@@ -47,7 +47,7 @@ include_dirs=["iot/percept/ext/include",
 "iot/percept/ext/include/VPUInferBlock/host/include", "iot/percept/ext/include/XLink", 
 "iot/percept/ext/include/common/host", "iot/percept/ext/include/VPUCameraBlock/host", "iot/percept/ext/include/libavformat", "iot/percept/ext/include/libavutil", 
 "iot/percept/ext/include/libavcodec", numpy_include_path], 
-extra_objects=[path.join(assets_path, "libmxIf.so"), path.join(assets_path, "libmxIf.a")], 
+extra_objects=[path.join(assets_path, "libmxIf.so")], 
 library_dirs=[assets_path], libraries=["avformat", "avcodec", "avutil", "swscale"],
 extra_link_args=["-lpthread", "-lusb-1.0", "-lstdc++"])])
 
