@@ -24,7 +24,7 @@ def main():
           version="0.0.3",
           description="Unofficial Python package to control the Azure Percept SoM",
           author="Christian Vorhemus",
-          author_email="chris.vorhemus@outlook.com",
+          author_email="",
           packages=['azure'],
           package_dir={'azure':'.'},
           install_requires=[
