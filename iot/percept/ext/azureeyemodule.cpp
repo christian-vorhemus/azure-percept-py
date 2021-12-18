@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <time.h>
+//#include <time.h>
 #include <atomic>
 
 #include <iostream>
@@ -393,7 +393,7 @@ static PyObject *method_closedevice(PyObject *self, PyObject *args)
   atomicIsOpen = false;
   atomicCamOn = false;
   pthread_cancel(threadH264);
-  sleep(1);
+  //sleep(1);
   mxIf::Reset();
   return Py_BuildValue("");
 }
