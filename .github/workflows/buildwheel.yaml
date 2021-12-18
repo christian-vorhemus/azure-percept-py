@@ -8,10 +8,10 @@ jobs:
       - uses: actions/checkout@v1
       - uses: spyoungtech/mirror-action@master
       - uses: RalfG/python-wheels-manylinux-build@v0.4.2
-          with:
-            python-versions: 'cp36-cp36m cp37-cp37m'
+        with:
+          python-versions: 'cp36-cp36m cp37-cp37m'
       - uses: actions/upload-artifact@v2
-          with:
-            name: azure-percept-wheel
-            path: |
-              dist
+        with:
+          name: azure-percept-wheel
+          path: |
+            dist
