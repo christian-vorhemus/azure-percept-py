@@ -114,7 +114,7 @@ b = image[2].tobytes()
 img = b+g+r
 
 vision.start_inference("<model>.blob")
-res: InferenceResult = vision.get_inference(input=img)
+res: InferenceResult = vision.get_inference(input=img, input_shape=(720, 1280))
 print(res.inference)
 vision.stop_inference()
 vision.close()
