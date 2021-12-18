@@ -4,7 +4,7 @@ import os
 from os import path
 import site
 
-package_path = site.getsitepackages()
+package_path = site.getsitepackages()[0]
 
 def get_files_recursively(directory):
     paths = []
