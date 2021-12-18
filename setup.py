@@ -2,7 +2,9 @@
 from setuptools import setup, Extension
 import os
 from os import path
-import numpy as np
+import site
+
+package_path = site.getsitepackages()
 
 def get_files_recursively(directory):
     paths = []
@@ -19,9 +21,9 @@ def main():
 'iot/percept/_azure_eye.py', 'iot/percept/__init__.py', 
 'iot/percept/_azure_ear.py', 'iot/percept/_device_authentication.py', 'iot/percept/requirements_onnx.txt'] 
     assets_path = str(path.join(path.dirname(__file__), 'iot', 'percept', 'assets'))
-    numpy_include_path = path.join(path.dirname(np.__file__), "core/include")
+    numpy_include_path = path.join(package_path, "numpy/core/include")
     setup(name="azure-percept",
-          version="0.0.3",
+          version="0.0.4",
           description="Unofficial Python package to control the Azure Percept SoM",
           author="Christian Vorhemus",
           author_email="",
