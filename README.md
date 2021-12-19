@@ -90,6 +90,7 @@ It's also possible to use a local image file instead of reading from a camera de
 
 ```python
 from azure.iot.percept import VisionDevice, InferenceResult
+import time
 from PIL import Image
 import numpy as np
 
@@ -105,16 +106,16 @@ while True:
 print("Authentication successful!")
 
 image = Image.open("./<yourfile>.jpg")
-image = np.array(image)
-image = np.moveaxis(image, -1, 0)
-r = image[0].tobytes()
-g = image[1].tobytes()
-b = image[2].tobytes()
+image_np = np.array(image)
+image_np = np.moveaxis(image_np, -1, 0)
+r = image_np[0].tobytes()
+g = image_np[1].tobytes()
+b = image_np[2].tobytes()
 
 img = b+g+r
 
 vision.start_inference("<model>.blob")
-res: InferenceResult = vision.get_inference(input=img, input_shape=(720, 1280))
+res: InferenceResult = vision.get_inference(input=img, input_shape=(image.height, image.width))
 print(res.inference)
 vision.stop_inference()
 vision.close()
