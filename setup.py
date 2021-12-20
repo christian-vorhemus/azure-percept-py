@@ -5,11 +5,12 @@ from os import path
 import site
 from distutils.sysconfig import get_python_lib
 import subprocess
+import sys
 
 package_path = site.getsitepackages()[0]
 
 def install_numpy():
-    subprocess.check_call("pip3 install numpy", shell=True)
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "numpy"])
 
 def get_files_recursively(directory):
     paths = []
