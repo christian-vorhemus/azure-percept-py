@@ -2,12 +2,13 @@
 #include <assert.h>
 #include <numpy/arrayobject.h>
 #include <pthread.h>
+#include <thread>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-//#include <time.h>
+#include <time.h>
 #include <atomic>
 
 #include <iostream>
@@ -53,6 +54,7 @@ char *out_file;
 char *blob_file;
 char *fname;
 bool isRunning = false;
+std::atomic<bool> atomicIsRunning(false);
 unsigned int inferenceSize;
 uint32_t inferenceType;
 int width;
@@ -60,6 +62,7 @@ int height;
 std::atomic<bool> atomicIsOpen(false);
 std::atomic<bool> atomicCamOn(false);
 pthread_t threadH264;
+pthread_t tid;
 
 class CaptureMetadata
 {
@@ -261,7 +264,6 @@ int convertVideo(const char *in_filename, const char *out_filename)
     av_packet_unref(&packet);
     n++;
   }
-  // https://ffmpeg.org/doxygen/trunk/group__lavf__encoding.html#ga7f14007e7dc8f481f054b21614dfec13
   av_write_trailer(output_format_context);
   avformat_close_input(&input_format_context);
   /* close output */
@@ -280,7 +282,7 @@ int convertVideo(const char *in_filename, const char *out_filename)
 
 void *record(void *par)
 {
-  isRunning = true;
+  atomicIsRunning = true;
 
   if (atomicCamOn == false)
   {
@@ -298,38 +300,30 @@ void *record(void *par)
 
   // fname = tmpnam(NULL);
   tmp = fopen(fname, "wb");
-
   while (true)
   {
-    if (!isRunning)
+    if (!atomicIsRunning)
     {
+      printf("Break on record()\n");
       break;
     }
     mxIf::MemoryHandle h264_hndl =
         m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::H264);
+    mxIf::MemoryHandle bgr = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
     uint8_t *pBuf = (uint8_t *)malloc(h264_hndl.bufSize);
+    uint8_t *pBufBGR = (uint8_t *)malloc(bgr.bufSize);
     assert(nullptr != pBuf);
+    assert(nullptr != pBufBGR);
     h264_hndl.TransferTo(pBuf);
+    bgr.TransferTo(pBufBGR);
 
     fwrite(pBuf, sizeof(uint8_t), h264_hndl.bufSize, tmp);
 
     free(pBuf);
-    m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::H264, h264_hndl);
+    free(pBufBGR);
+    // m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::H264, h264_hndl);
+    m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr);
   }
-  fclose(tmp);
-  int res = convertVideo(fname, out_file);
-  if (remove(fname) != 0)
-  {
-    printf("Deleting temporary file failed\n");
-  }
-  if (res != 0)
-  {
-    printf("Converting video failed\n");
-    exit(1);
-  }
-  free(out_file);
-  free(fname);
-  return 0;
 }
 
 // This thread must run during inference,
@@ -358,14 +352,33 @@ static PyObject *method_startrecording(PyObject *self, PyObject *args)
   }
   out_file = (char *)malloc(strlen(out) + 1);
   strcpy(out_file, out);
-  pthread_t tid;
-  pthread_create(&tid, NULL, record, NULL);
+  pthread_t threadH;
+  // std::thread recordThread(record);
+  // recordThread.detach();
+  pthread_create(&threadH264, NULL, record, NULL);
   return Py_BuildValue("");
 }
 
 static PyObject *method_stoprecording(PyObject *self, PyObject *args)
 {
-  isRunning = false;
+  atomicIsRunning = false;
+  fclose(tmp);
+  if (threadH264)
+  {
+    pthread_cancel(threadH264);
+  }
+  int res = convertVideo(fname, out_file);
+  if (remove(fname) != 0)
+  {
+    printf("Deleting temporary file failed\n");
+  }
+  if (res != 0)
+  {
+    printf("Converting video failed\n");
+    exit(1);
+  }
+  free(out_file);
+  free(fname);
   return Py_BuildValue("");
 }
 
@@ -392,8 +405,11 @@ static PyObject *method_closedevice(PyObject *self, PyObject *args)
 {
   atomicIsOpen = false;
   atomicCamOn = false;
-  pthread_cancel(threadH264);
-  //sleep(1);
+  if (threadH264)
+  {
+    pthread_cancel(threadH264);
+  }
+  sleep(1);
   mxIf::Reset();
   return Py_BuildValue("");
 }
@@ -409,7 +425,7 @@ static PyObject *method_stopinference(PyObject *self, PyObject *args)
       deviceClose(device.fd);
     }
   }
-  isRunning = false;
+  atomicIsRunning = false;
   atomicIsOpen = false;
   return Py_BuildValue("");
 }

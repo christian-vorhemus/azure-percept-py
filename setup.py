@@ -4,9 +4,12 @@ import os
 from os import path
 import site
 from distutils.sysconfig import get_python_lib
-import numpy
+import subprocess
 
 package_path = site.getsitepackages()[0]
+
+def install_numpy():
+    subprocess.check_call("pip3 install numpy", shell=True)
 
 def get_files_recursively(directory):
     paths = []
@@ -16,6 +19,7 @@ def get_files_recursively(directory):
     return paths
 
 def main():
+    import numpy
     mo_files = get_files_recursively('iot/percept/mo')
     extensions_files = get_files_recursively('iot/percept/extensions')
     package_files = mo_files + extensions_files + ['iot/percept/mo.py', 'iot/percept/mo_onnx.py', 'iot/percept/assets/myriad_compile', 
@@ -26,7 +30,7 @@ def main():
     #numpy_include_path = path.join(package_path, "numpy/core/include")
     numpy_include_path = numpy.get_include()
     setup(name="azure-percept",
-          version="0.0.4",
+          version="0.0.5",
           description="Unofficial Python package to control the Azure Percept SoM",
           author="Christian Vorhemus",
           author_email="",
@@ -58,4 +62,5 @@ extra_link_args=["-lpthread", "-lusb-1.0", "-lstdc++"])])
 
 
 if __name__ == "__main__":
+    install_numpy()
     main()
