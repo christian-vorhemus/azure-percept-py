@@ -82,8 +82,6 @@ vision.close()
 
 Type `sudo python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `vision.start_inference(blob_model_path)` will start the Azure Percept Vision camera as well as the VPU. To specify the input camera sources, pass the `input_src` argument, for example `vision.start_inference(blob_model_path, input_src=["/dev/video0", "/dev/video2"])` whereas `/camera1` would identify the Percept module camera and `/dev/video0`, `/dev/video2` are conventional USB cameras plugged into the Percept DK.  With `vision.get_inference()` the prediction results are returned as an `InferenceResult` object or as a list of `InferenceResult` objects in case of multiple input sources. The prediction is stored as a numpy array in `res.inference`.
 
-During model conversion you might get an error like `Cannot create X layer from unsupported opset`. This indicates that the model contains a layer that can't be converted to a model definition the VPU can process. For a list of supported layers see [here](https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers.html).
-
 ### Process local image files on the VPU
 
 It's also possible to use a local image file instead of reading from a camera device. To do so, convert the image into a BGR sequence of bytes and pass them in the `input` argument of `get_inference()`:
@@ -172,6 +170,14 @@ vision.stop_recording()
 print("Recording stopped")
 vision.close()
 ```
+
+## Troubleshooting
+
+#### During model conversion I get "Cannot create X layer from unsupported opset"
+This indicates that the model contains a layer that can't be converted to a model definition the VPU can process. For a list of supported layers see [here](https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers.html).
+
+#### Reading audio data fails with "ValueError: Device not found" or "Exception: Azure Ear could not authenticate"
+Type in "lsusb". You should see a list of several devices, try to find `Bus 003 Device 006: ID 045e:0673 Microsoft Corp.`. If this device is not present, unplug and plug in your Azure Audio device again and restart the device. Additionally make sure your device has Internet connectivity during the authentication process.
 
 ## License
 This library is licensed under [Apache License Version 2.0](https://github.com/christian-vorhemus/azure-percept-py/blob/main/LICENSE) and uses binaries and scripts from the [OpenVINO toolkit](https://github.com/openvinotoolkit/openvino) which is as well licensed under Apache License Version 2.0. 
