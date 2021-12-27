@@ -51,7 +51,7 @@ Type `sudo python3 perceptaudio.py` to run the script.
 
 ## Azure Percept Vision samples
 ### Run a machine learning model on the VPU
-The following sample shows how to run a model on the Azure Vision Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [ResNet-18](https://github.com/onnx/models/raw/master/vision/classification/resnet/model/resnet18-v1-7.onnx) or download [sample models](https://github.com/microsoft/azure-percept-advanced-development#model-urls) which are already converted to the .blob format. Create a new file `perceptvision.py` with the following content
+The following sample shows how to run a model on the Azure Vision Myriad VPU. It assumes we have a .onnx model ready for inference. If not, download a model from the [ONNX Model Zoo](https://github.com/onnx/models), for example [ResNet-18](https://github.com/onnx/models/raw/master/vision/classification/resnet/model/resnet18-v1-7.onnx) or browse the [sample models](https://github.com/microsoft/azure-percept-advanced-development#model-urls) which are already converted to the .blob format. Create a new file `perceptvision.py` with the following content
 
 ```python
 from azure.iot.percept import VisionDevice, InferenceResult
