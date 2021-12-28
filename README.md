@@ -6,14 +6,19 @@ This is the source code for the azure-percept package - an unofficial Python lib
 
 Please refer to the official documentation to learn how to connect to the device: https://docs.microsoft.com/en-us/azure/azure-percept/how-to-ssh-into-percept-dk
 
-## Prerequisites
-Make sure the following is installed on your Percept device or the container you want to use
+
+## Install
+
+### From PyPi
+Make sure you use one of the following Python versions: 3.6, 3.7, 3.8 or 3.9. The run:
+
+`python3 -m pip install --upgrade pip && pip3 install azure-percept`
+
+### From source
+Make sure the following is installed on your Percept device or the container you want to use:
 - libalsa, libusb, gcc, binutils, Python headers, setuptools and pip (run `sudo yum install -y git alsa-lib-devel libusb-devel gcc glibc-devel kernel-devel kernel-headers binutils python3-devel python3-setuptools python3-pip`)
 - pthreads (libpthread should be available on most OS by default, check your library path - for example /usr/lib/ - to be sure)
 - Numpy: `sudo pip3 install numpy`
-
-## Install
-The following guide assumes you run the code directly on the Percept board (CBL Mariner OS):
 - Clone the source code on your Percept device `git clone https://github.com/christian-vorhemus/azure-percept-py.git`
 - Open a terminal and cd into `azure-percept-py`
 - Run `sudo pip3 install .`
