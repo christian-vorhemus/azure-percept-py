@@ -2,6 +2,7 @@ import time
 from ._device_authentication import DeviceAuthentication
 import threading
 import io
+import os
 import sys
 import _hardware
 from abc import ABC

@@ -1,6 +1,7 @@
 import time
 import sys
 import argparse
+#from _device_authentication import DeviceAuthentication
 from ._device_authentication import DeviceAuthentication
 import threading
 import io
@@ -10,10 +11,10 @@ from os import path
 import subprocess
 import usb.core
 import usb.util
+#from _azure_ear import AzurePercept
 from ._azure_ear import AzurePercept
 import _azureeye
 import numpy as np
-# from .mo import main as mo
 
 
 class InferenceResult:
