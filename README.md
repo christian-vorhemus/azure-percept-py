@@ -12,8 +12,11 @@ Please refer to the official documentation to learn how to connect to the device
 ### From PyPI
 This package is intended to run directly on Azure Percept hardware (or a container hosted on Azure Percept). Make sure you use one of the following Python versions: 3.6, 3.7, 3.8 or 3.9. Then install the package with:
 
-`python3 -m pip install --upgrade pip && pip3 install azure-percept`
-
+```
+sudo yum install python3-pip
+python3 -m pip install --upgrade pip
+pip3 install azure-percept
+```
 ### From source
 Make sure the following is installed on your Percept device or the container you want to use:
 - libalsa, libusb, gcc, binutils, Python headers, setuptools and pip (run `sudo yum install -y git alsa-lib-devel libusb-devel gcc glibc-devel kernel-devel kernel-headers binutils python3-devel python3-setuptools python3-pip`)
