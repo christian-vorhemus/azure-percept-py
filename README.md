@@ -21,10 +21,9 @@ pip3 install azure-percept
 Make sure the following is installed on your Percept device or the container you want to use:
 - libalsa, libusb, gcc, binutils, Python headers, setuptools and pip (run `sudo yum install -y git alsa-lib-devel libusb-devel gcc glibc-devel kernel-devel kernel-headers binutils python3-devel python3-setuptools python3-pip`)
 - pthreads (libpthread should be available on most OS by default, check your library path - for example /usr/lib/ - to be sure)
-- Numpy: `sudo pip3 install numpy`
 - Clone the source code on your Percept device `git clone https://github.com/christian-vorhemus/azure-percept-py.git`
 - Open a terminal and cd into `azure-percept-py`
-- Run `sudo pip3 install .`
+- Run `pip3 install .`
 - To uninstall run `sudo pip3 uninstall azure-percept`
 
 Note that the package includes pre-built libraries that will only run on an aarch64 architecture!
