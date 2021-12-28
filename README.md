@@ -24,7 +24,7 @@ Make sure the following is installed on your Percept device or the container you
 - Clone the source code on your Percept device `git clone https://github.com/christian-vorhemus/azure-percept-py.git`
 - Open a terminal and cd into `azure-percept-py`
 - Run `pip3 install .`
-- To uninstall run `sudo pip3 uninstall azure-percept`
+- To uninstall run `pip3 uninstall azure-percept`
 
 Note that the package includes pre-built libraries that will only run on an aarch64 architecture!
 
