@@ -11,7 +11,7 @@ Please refer to the official documentation to learn how to connect to the device
 
 ## Install
 
-### From PyPI
+### From PyPI (recommended)
 This package is intended to run directly on Azure Percept hardware (or a container hosted on Azure Percept). Make sure you use one of the following Python versions: 3.6, 3.7, 3.8 or 3.9. Then install the package with:
 
 ```
@@ -29,10 +29,10 @@ Make sure the following is installed on your Percept device or the container you
 - pthreads (libpthread should be available on most OS by default, check your library path - for example /usr/lib/ - to be sure)
 - Clone the source code on your Percept device `git clone https://github.com/christian-vorhemus/azure-percept-py.git`
 - Open a terminal and cd into `azure-percept-py`
-- Run `pip3 install .`
+- Run `sudo pip3 install .` In case you get an error message like "module_info.ld: No such file or directory", run `sudo /usr/lib/rpm/mariner/gen-ld-script.sh` to create the necessary scripts.
 - Run `sudo usermod -aG apdk_accessories,audio $(whoami)`
 - Log out and log in again
-- To uninstall run `pip3 uninstall azure-percept`
+- To uninstall run `sudo pip3 uninstall azure-percept`
 
 Note that the package includes pre-built libraries that will only run on an aarch64 architecture!
 
