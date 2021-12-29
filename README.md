@@ -62,7 +62,7 @@ print("Recording stopped")
 audio.close()
 ```
 
-Type `sudo python3 perceptaudio.py` to run the script.
+Type `python3 perceptaudio.py` to run the script.
 
 ## Azure Percept Vision samples
 ### Run a machine learning model on the VPU
@@ -95,7 +95,7 @@ vision.stop_inference()
 vision.close()
 ```
 
-Type `sudo python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `vision.start_inference(blob_model_path)` will start the Azure Percept Vision camera as well as the VPU. To specify the input camera sources, pass the `input_src` argument, for example `vision.start_inference(blob_model_path, input_src=["/dev/video0", "/dev/video2"])` whereas `/camera1` would identify the Percept module camera and `/dev/video0`, `/dev/video2` are conventional USB cameras plugged into the Percept DK.  With `vision.get_inference()` the prediction results are returned as an `InferenceResult` object or as a list of `InferenceResult` objects in case of multiple input sources. The prediction is stored as a numpy array in `res.inference`.
+Type `python3 perceptvision.py` to run the script. Especially the model conversion can take several minutes. `vision.start_inference(blob_model_path)` will start the Azure Percept Vision camera as well as the VPU. To specify the input camera sources, pass the `input_src` argument, for example `vision.start_inference(blob_model_path, input_src=["/dev/video0", "/dev/video2"])` whereas `/camera1` would identify the Percept module camera and `/dev/video0`, `/dev/video2` are conventional USB cameras plugged into the Percept DK.  With `vision.get_inference()` the prediction results are returned as an `InferenceResult` object or as a list of `InferenceResult` objects in case of multiple input sources. The prediction is stored as a numpy array in `res.inference`.
 
 ### Process local image files on the VPU
 
