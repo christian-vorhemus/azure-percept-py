@@ -18,7 +18,7 @@ This package is intended to run directly on Azure Percept hardware (or a contain
 sudo yum install python3-pip
 python3 -m pip install --upgrade pip
 pip3 install azure-percept
-sudo usermod -aG apdk_accessories $(whoami)
+sudo usermod -aG apdk_accessories $(whoami) && sudo usermod -aG audio $(whoami)
 ```
 
 After running these commands, **log out and log in again** so the group membership changes take effect.
@@ -192,7 +192,7 @@ vision.close()
 This indicates that the model contains a layer that can't be converted to a model definition the VPU can process. For a list of supported layers see [here](https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers.html).
 
 #### Reading audio data fails with "ValueError: Device not found" or "Exception: Azure Ear could not authenticate"
-Type in "lsusb". You should see a list of several devices, try to find `ID 045e:0673 Microsoft Corp.`. If this device is not present, unplug and plug in your Azure Audio device again and restart the device. Additionally make sure your device has Internet connectivity during the authentication process.
+Type in "lsusb". You should see a list of several devices, try to find `ID 045e:0673 Microsoft Corp.`. If this device is not present, unplug and plug in your Azure Audio device again and restart the device. Additionally make sure your device has Internet connectivity during the authentication process. It's also possible that the user you run the command with has no rights to access soundcards. You can check this if you install alsa utils (`sudo yum install alsa-utils`) and then run `aplay -l`. If you see an output like "no soundcards found", add the user you run the script with (e..g the current user `sudo usermod -aG audio $(whoami)`) to the audio group, log out and log in and test again.
 
 ## License
 This library is licensed under [Apache License Version 2.0](https://github.com/christian-vorhemus/azure-percept-py/blob/main/LICENSE) and uses binaries and scripts from the [OpenVINO toolkit](https://github.com/openvinotoolkit/openvino) which is as well licensed under Apache License Version 2.0. 
