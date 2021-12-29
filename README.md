@@ -30,7 +30,7 @@ Make sure the following is installed on your Percept device or the container you
 - Clone the source code on your Percept device `git clone https://github.com/christian-vorhemus/azure-percept-py.git`
 - Open a terminal and cd into `azure-percept-py`
 - Run `pip3 install .`
-- Run `sudo usermod -aG apdk_accessories $(whoami)`
+- Run `sudo usermod -aG apdk_accessories,audio $(whoami)`
 - Log out and log in again
 - To uninstall run `pip3 uninstall azure-percept`
 
