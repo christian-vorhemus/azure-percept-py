@@ -2,6 +2,8 @@ This is the source code for the azure-percept package - an unofficial Python lib
 
 **IMPORTANT**: This is an experimental privately written libray without any warranty, expect bugs. If you encounter them, please [open an issue](https://github.com/christian-vorhemus/azure-percept-py/issues) on Github.
 
+
+[![Mirroring](https://github.com/christian-vorhemus/azure-percept-py/actions/workflows/mirror.yaml/badge.svg)](https://github.com/christian-vorhemus/azure-percept-py/actions/workflows/mirror.yaml)
 ## Connect to your Percept
 
 Please refer to the official documentation to learn how to connect to the device: https://docs.microsoft.com/en-us/azure/azure-percept/how-to-ssh-into-percept-dk
