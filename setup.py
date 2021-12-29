@@ -68,7 +68,9 @@ def main():
           package_data={
               'azure': package_files
           },
-          data_files=[('/azure_percept.libs', ['iot/percept/assets/plugins.xml', 
+          data_files=[('/lib64', ['iot/percept/assets/plugins.xml',
+'iot/percept/assets/libinference_engine_ir_reader.so']), ('/azure_percept.libs', 
+['iot/percept/assets/plugins.xml', 
 'iot/percept/assets/libinference_engine_ir_reader.so']), ('/usr/lib', 
 ['iot/percept/assets/libmyriadPlugin.so', 
 'iot/percept/assets/libngraph.so', 'iot/percept/assets/libusb-1.0.so.0', 
