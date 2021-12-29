@@ -18,7 +18,7 @@ This package is intended to run directly on Azure Percept hardware (or a contain
 sudo yum install python3-pip
 python3 -m pip install --upgrade pip
 pip3 install azure-percept
-sudo usermod -aG apdk_accessories $(whoami) && sudo usermod -aG audio $(whoami)
+sudo usermod -aG apdk_accessories,audio $(whoami)
 ```
 
 After running these commands, **log out and log in again** so the group membership changes take effect.
