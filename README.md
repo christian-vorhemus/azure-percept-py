@@ -1,6 +1,6 @@
 This is the source code for the azure-percept package - an unofficial Python library to access the sensors of Azure Percept in Python.
 
-**IMPORTANT**: This is an experimental privately written libray without any warranty, expect bugs. If you encounter them, please [open an issue](https://github.com/christian-vorhemus/azure-percept-py/issues) on Github.
+**IMPORTANT**: This is a community-driven open source library without any warranty, expect bugs. If you encounter them, please [open an issue](https://github.com/christian-vorhemus/azure-percept-py/issues) on Github.
 
 
 [![Mirroring](https://github.com/christian-vorhemus/azure-percept-py/actions/workflows/mirror.yaml/badge.svg)](https://github.com/christian-vorhemus/azure-percept-py/actions/workflows/mirror.yaml)
