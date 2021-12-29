@@ -16,7 +16,11 @@ This package is intended to run directly on Azure Percept hardware (or a contain
 sudo yum install python3-pip
 python3 -m pip install --upgrade pip
 pip3 install azure-percept
+sudo usermod -aG apdk_accessories $(whoami)
 ```
+
+After running these commands, **log out and log in again** so the group membership changes take effect.
+
 ### From source
 Make sure the following is installed on your Percept device or the container you want to use:
 - libalsa, libusb, gcc, binutils, Python headers, setuptools and pip (run `sudo yum install -y git alsa-lib-devel libusb-devel gcc glibc-devel kernel-devel kernel-headers binutils python3-devel python3-setuptools python3-pip`)
@@ -24,6 +28,8 @@ Make sure the following is installed on your Percept device or the container you
 - Clone the source code on your Percept device `git clone https://github.com/christian-vorhemus/azure-percept-py.git`
 - Open a terminal and cd into `azure-percept-py`
 - Run `pip3 install .`
+- Run `sudo usermod -aG apdk_accessories $(whoami)`
+- Log out and log in again
 - To uninstall run `pip3 uninstall azure-percept`
 
 Note that the package includes pre-built libraries that will only run on an aarch64 architecture!
