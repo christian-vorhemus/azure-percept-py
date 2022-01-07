@@ -86,7 +86,9 @@ print("Authentication successful!")
 
 # this will convert a ONNX model to a model file with the same name
 # and a .blob suffix to the output directory "/path/to"
-vision.convert_model("/path/to/resnet18-v1-7.onnx", output_dir="/path/to")
+vision.convert_model("/path/to/resnet18-v1-7.onnx",
+    scale_values=[58.395, 57.120, 57.375], mean_values=[123.675, 116.28, 103.53],
+    reverse_input_channels=True, output_dir="/path/to")
 vision.start_inference("/path/to/resnet18-v1-7.blob")
 res: InferenceResult = vision.get_inference(return_image=True)
 print(res.inference)
