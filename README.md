@@ -12,7 +12,7 @@ Please refer to the official documentation to learn how to connect to the device
 ## Install
 
 ### From PyPI (recommended)
-This package is intended to run directly on Azure Percept hardware (or a container hosted on Azure Percept). Make sure you use one of the following Python versions: 3.6, 3.7, 3.8 or 3.9. Then install the package with:
+This package is intended to run on an Azure Percept device (or a container hosted on Azure Percept). Make sure you use one of the following Python versions: 3.6, 3.7, 3.8 or 3.9. Then install the package with:
 
 ```
 sudo yum install python3-pip
