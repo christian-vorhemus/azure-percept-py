@@ -53,11 +53,12 @@ def main():
     #numpy_include_path = path.join(package_path, "numpy/core/include")
     numpy_include_path = numpy.get_include()
     setup(name="azure-percept",
-          version="0.0.7",
+          version="0.0.8",
           description="Unofficial Python package to control the Azure Percept SoM",
           url="https://github.com/christian-vorhemus/azure-percept-py",
           long_description=long_description,
           long_description_content_type='text/markdown',
+          license_files=('LICENSE',),
           author="Christian Vorhemus",
           author_email="",
           packages=['azure'],

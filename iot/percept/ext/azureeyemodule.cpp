@@ -286,8 +286,11 @@ void *record(void *par)
 
   if (atomicCamOn == false)
   {
-    auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
-    m_cam.reset(new mxIf::CameraBlock(cam_mode));
+    mxIf::CameraBlock::CameraConfig cam_cfg{mxIf::CameraBlock::CamMode::CamMode_720p, 30};
+    mxIf::CameraBlock::EncoderConfig enc_cfg {true, 25000000, 30, 30};
+    m_cam.reset(new mxIf::CameraBlock(cam_cfg, enc_cfg));
+    // auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
+    // m_cam.reset(new mxIf::CameraBlock(cam_mode));
     m_cam->Start();
     atomicCamOn = true;
   }
@@ -304,25 +307,27 @@ void *record(void *par)
   {
     if (!atomicIsRunning)
     {
-      printf("Break on record()\n");
       break;
     }
     mxIf::MemoryHandle h264_hndl =
         m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::H264);
     mxIf::MemoryHandle bgr = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
     uint8_t *pBuf = (uint8_t *)malloc(h264_hndl.bufSize);
-    uint8_t *pBufBGR = (uint8_t *)malloc(bgr.bufSize);
-    assert(nullptr != pBuf);
-    assert(nullptr != pBufBGR);
+    // uint8_t *pBufBGR = (uint8_t *)malloc(bgr.bufSize);
+    // assert(nullptr != pBuf);
+    // assert(nullptr != pBufBGR);
     h264_hndl.TransferTo(pBuf);
-    bgr.TransferTo(pBufBGR);
+    // bgr.TransferTo(pBufBGR);
 
     fwrite(pBuf, sizeof(uint8_t), h264_hndl.bufSize, tmp);
 
-    free(pBuf);
-    free(pBufBGR);
-    // m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::H264, h264_hndl);
     m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr);
+    // m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::H264, h264_hndl);
+
+    if(pBuf) {
+      free(pBuf);
+    }
+    // free(pBufBGR);
   }
 }
 
