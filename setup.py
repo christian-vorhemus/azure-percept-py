@@ -53,7 +53,7 @@ def main():
     #numpy_include_path = path.join(package_path, "numpy/core/include")
     numpy_include_path = numpy.get_include()
     setup(name="azure-percept",
-          version="0.0.8",
+          version="0.0.10",
           description="Unofficial Python package to control the Azure Percept SoM",
           url="https://github.com/christian-vorhemus/azure-percept-py",
           long_description=long_description,
@@ -83,17 +83,17 @@ def main():
 'iot/percept/assets/libinference_engine_transformations.so', 
 'iot/percept/assets/libavformat.so.57', 
 'iot/percept/assets/libavutil.so.55', 'iot/percept/assets/libswresample.so.2', 'iot/percept/assets/libswscale.so.4'])],
-          ext_modules=[Extension("_hardware", ["iot/percept/ext/perceptmodule.c"], 
+          ext_modules=[Extension("_hardware", ["iot/percept/ext/perceptmodule.c", "iot/percept/ext/validator.c"], 
 include_dirs=["iot/percept/ext/include"], library_dirs=[assets_path], libraries=["asound"], 
-extra_link_args=["-lpthread", "-Wl,-rpath=$ORIGIN/usr/lib"]),
-                       Extension("_azureeye", ["iot/percept/ext/azureeyemodule.cpp", "iot/percept/ext/usbcamera.c"], 
+extra_link_args=["-lpthread", "-ludev", "-lusb-1.0", "-Wl,-rpath=$ORIGIN/usr/lib"]),
+                       Extension("_azureeye", ["iot/percept/ext/azureeyemodule.cpp", "iot/percept/ext/usbcamera.c", "iot/percept/ext/validator.c"], 
 include_dirs=["iot/percept/ext/include", 
 "iot/percept/ext/include/VPUInferBlock/host/include", "iot/percept/ext/include/XLink", 
 "iot/percept/ext/include/common/host", "iot/percept/ext/include/VPUCameraBlock/host", "iot/percept/ext/include/libavformat", "iot/percept/ext/include/libavutil", 
 "iot/percept/ext/include/libavcodec", numpy_include_path], 
 extra_objects=[path.join(assets_path, "libmxIf.so")], library_dirs=[assets_path], libraries=["avformat", "avcodec", 
 "avutil", "swscale"],
-extra_link_args=["-lpthread", "-lusb-1.0", "-lstdc++", "-Wl,-rpath=$ORIGIN/usr/lib"])])
+extra_link_args=["-lpthread", "-ludev", "-lusb-1.0", "-lstdc++", "-Wl,-rpath=$ORIGIN/usr/lib"])])
 
 
 if __name__ == "__main__":

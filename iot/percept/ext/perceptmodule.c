@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include <pthread.h>
 
-FILE *out;
 snd_pcm_format_t format;
 char *buffer;
 int buffer_frames;
@@ -18,6 +17,9 @@ snd_pcm_t *pcapture_handle;
 snd_pcm_hw_params_t *hw_params;
 struct timeval tval_before, tval_after, tval_result;
 bool isRecording = false;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+bool start_som_auth(uint16_t som_vid, uint16_t som_pid);
 
 struct WavHeader
 {
@@ -79,6 +81,9 @@ int writeWAVHeader(FILE *out, struct WavHeader *hdr)
 
 void *record(void *args)
 {
+  pthread_mutex_lock(&mutex);
+  char *fname = args;
+  FILE *out = fopen(fname, "wb");
   int err;
   isRecording = true;
   buffer = (char *)malloc(buffer_frames * snd_pcm_format_width(format) / 8 * channels);
@@ -89,17 +94,19 @@ void *record(void *args)
     fputc(0x00, out);
   }
   gettimeofday(&tval_before, NULL);
-  if (!pcapture_handle)
-  {
-    fprintf(stderr, "Error: pcapture_handle is NULL\n");
-    exit(1);
-  }
-  if ((err = snd_pcm_prepare(pcapture_handle)) < 0)
-  {
-    fprintf(stderr, "cannot prepare audio interface for use (%s)\n",
-            snd_strerror(err));
-    exit(1);
-  }
+
+  // if (!pcapture_handle)
+  // {
+  //   fprintf(stderr, "Error: pcapture_handle is NULL\n");
+  //   exit(1);
+  // }
+  // if ((err = snd_pcm_prepare(pcapture_handle)) < 0)
+  // {
+  //   fprintf(stderr, "cannot prepare audio interface for use (%s)\n",
+  //           snd_strerror(err));
+  //   exit(1);
+  // }
+
   while (true)
   {
     if (!isRecording)
@@ -109,7 +116,7 @@ void *record(void *args)
     if ((err = snd_pcm_readi(pcapture_handle, buffer, buffer_frames)) !=
         buffer_frames)
     {
-      //fprintf(stderr, "Read from audio interface failed (%s)\n", snd_strerror(err));
+      // fprintf(stderr, "Read from audio interface failed (%s)\n", snd_strerror(err));
       break;
     }
     fwrite(buffer, sizeof(char), buffer_frames * snd_pcm_format_width(format) / 8 * channels, out);
@@ -125,6 +132,8 @@ void *record(void *args)
   writeWAVHeader(out, hdr);
   free(hdr);
   fclose(out);
+  free(fname);
+  pthread_mutex_unlock(&mutex);
   return 0;
 }
 
@@ -181,37 +190,25 @@ static PyObject *method_getraw(PyObject *self, PyObject *args)
 
 static PyObject *method_startrecording(PyObject *self, PyObject *args)
 {
-
-  // PyObject *f, *fileno_fn, *fileno_obj, *fileno_args;
-  // if (!PyArg_ParseTuple(args, "O", &f))
-  // {
-  //   return NULL;
-  // }
-
-  // if (!(fileno_fn = PyObject_GetAttrString(f, "fileno")))
-  // {
-  //   PyErr_SetString(PyExc_TypeError, "Object has no fileno function.");
-  //   return NULL;
-  // }
-  // fileno_args = PyTuple_New(0);
-  // if (!(fileno_obj = PyObject_CallObject(fileno_fn, fileno_args)))
-  // {
-  //   PyErr_SetString(PyExc_SystemError, "Error calling fileno function.");
-  //   return NULL;
-  // }
-  // int fd = PyLong_AsSize_t(fileno_obj);
-
-  // out = fdopen(fd, "wb");
   char *fname;
   if (!PyArg_ParseTuple(args, "s", &fname))
   {
     return NULL;
   }
 
-  out = fopen(fname, "wb");
+  char *out_file = (char *)malloc(strlen(fname) + 1);
+  strcpy(out_file, fname);
 
   pthread_t tid;
-  pthread_create(&tid, NULL, record, NULL);
+  pthread_create(&tid, NULL, record, out_file);
+  return Py_BuildValue("");
+}
+
+static PyObject *method_authorize(PyObject *self, PyObject *args)
+{
+  const int mcu_vid = 0x045E;
+  const int mcu_pid = 0x0673;
+  start_som_auth(mcu_vid, mcu_pid);
   return Py_BuildValue("");
 }
 
@@ -239,16 +236,12 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
     exit(1);
   }
 
-  // fprintf(stdout, "audio interface opened\n");
-
   if ((err = snd_pcm_hw_params_malloc(&hw_params)) < 0)
   {
     fprintf(stderr, "cannot allocate hardware parameter structure (%s)\n",
             snd_strerror(err));
     exit(1);
   }
-
-  // fprintf(stdout, "hw_params allocated\n");
 
   if ((err = snd_pcm_hw_params_any(pcapture_handle, hw_params)) < 0)
   {
@@ -257,16 +250,12 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
     exit(1);
   }
 
-  // fprintf(stdout, "hw_params initialized\n");
-
   if ((err = snd_pcm_hw_params_set_access(pcapture_handle, hw_params,
                                           SND_PCM_ACCESS_RW_INTERLEAVED)) < 0)
   {
     fprintf(stderr, "cannot set access type (%s)\n", snd_strerror(err));
     exit(1);
   }
-
-  // fprintf(stdout, "hw_params access setted\n");
 
   if ((err = snd_pcm_hw_params_set_format(pcapture_handle, hw_params, format)) <
       0)
@@ -275,16 +264,12 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
     exit(1);
   }
 
-  // fprintf(stdout, "hw_params format setted\n");
-
   if ((err = snd_pcm_hw_params_set_rate_near(pcapture_handle, hw_params, &rate,
                                              0)) < 0)
   {
     fprintf(stderr, "cannot set sample rate (%s)\n", snd_strerror(err));
     exit(1);
   }
-
-  // fprintf(stdout, "hw_params rate setted\n");
 
   if ((err = snd_pcm_hw_params_set_channels(pcapture_handle, hw_params, channels)) <
       0)
@@ -293,19 +278,13 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
     exit(1);
   }
 
-  // fprintf(stdout, "hw_params channels setted\n");
-
   if ((err = snd_pcm_hw_params(pcapture_handle, hw_params)) < 0)
   {
     fprintf(stderr, "cannot set parameters (%s)\n", snd_strerror(err));
     exit(1);
   }
 
-  // fprintf(stdout, "hw_params setted\n");
-
   snd_pcm_hw_params_free(hw_params);
-
-  // fprintf(stdout, "hw_params freed\n");
 
   if ((err = snd_pcm_prepare(pcapture_handle)) < 0)
   {
@@ -313,8 +292,6 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
             snd_strerror(err));
     exit(1);
   }
-
-  // fprintf(stdout, "audio interface prepared\n");
 
   return Py_BuildValue("");
 }
@@ -384,6 +361,7 @@ static PyMethodDef HardwareMethods[] = {
     {"stop_recording", method_stoprecording, METH_VARARGS, "Stop Azure Ear audio recording"},
     {"get_raw_audio", method_getraw, METH_VARARGS, "Get audio frames as byte array"},
     {"prepare_ear", method_prepareear, METH_VARARGS, "Prepares the Azure Eye device"},
+    {"authorize", method_authorize, METH_VARARGS, "Authorizes the Azure Eye device"},
     {"close_ear", method_closeear, METH_VARARGS, "Closes the Azure Eye device"},
     {NULL, NULL, 0, NULL}};
 

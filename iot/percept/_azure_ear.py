@@ -54,7 +54,9 @@ class AudioDevice(AzurePercept):
             return True
 
     def _authenticate(self, authenticator, timeout_seconds):
-        threading.Thread(target=authenticator.start_authentication).start()
+        def _auth():
+            _hardware.authorize()
+        threading.Thread(target=_auth).start()
         t = 0
         while t < timeout_seconds:
             if _hardware.get_azure_ear_hardware() != -1:
@@ -95,22 +97,6 @@ class AudioDevice(AzurePercept):
         """
         _hardware.stop_recording()
         self._is_recording = False
-
-    def get_raw_audio(self, frames_count=1600):
-        """
-        Returns <frames_count> audio frames from the device as a numpy array representing PCM amplitude values.
-        The shape of the numpy array is (frame_count, 5) as there are 5 channels that are recorded.
-        The array represents the total number of bytes returned which is bit depth (32 bit = 4 byte) * channels (5) * <frames_count>
-        :param int frames_count:
-            Specifies the number of frames read and returned from the audio interface
-        """
-        bytes = _hardware.get_raw_audio(frames_count)
-        return bytes
-        # arr = np.zeros((int(len(bytes)/20), 5))
-        # for j in range(0, (int(len(bytes)/20))):
-        #     for k in range(0, 5):
-        #         arr[j][k] = int.from_bytes(bytes[k*4:(k*4)+4], byteorder=sys.byteorder, signed=True)
-        # return arr
 
     def close(self):
         """

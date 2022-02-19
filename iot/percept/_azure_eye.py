@@ -60,7 +60,9 @@ class VisionDevice(AzurePercept):
         return self._ready
 
     def _authenticate(self, authenticator, timeout_seconds):
-        threading.Thread(target=authenticator.start_authentication).start()
+        def _auth():
+            _azureeye.authorize()
+        threading.Thread(target=_auth).start()
         t = 0
         while t < timeout_seconds:
             if self.is_authenticated() is True:

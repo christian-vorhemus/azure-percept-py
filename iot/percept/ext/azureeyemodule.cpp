@@ -33,6 +33,7 @@
 #include "mxIf.h"
 #include "mxIfCameraBlock.h"
 #include "mxIfMemoryHandle.h"
+#include <mutex>
 
 extern "C"
 {
@@ -42,6 +43,11 @@ extern "C"
 
 #define mvLogDefaultLevelSet(MVLOG_ERROR)
 #define mvLogLevelSet(MVLOG_ERROR)
+
+extern "C"
+{
+  bool start_som_auth(uint16_t som_vid, uint16_t som_pid);
+}
 
 FILE *tmp;
 char *mvcmdFile;
@@ -62,7 +68,12 @@ int height;
 std::atomic<bool> atomicIsOpen(false);
 std::atomic<bool> atomicCamOn(false);
 pthread_t threadH264;
+pthread_t threadBGR;
 pthread_t tid;
+pthread_mutex_t videoMutex = PTHREAD_MUTEX_INITIALIZER;
+std::thread recordThread;
+std::thread pullThread;
+std::mutex mtx;
 
 class CaptureMetadata
 {
@@ -280,20 +291,29 @@ int convertVideo(const char *in_filename, const char *out_filename)
   return 0;
 }
 
-void *record(void *par)
+void bgrThread()
 {
-  atomicIsRunning = true;
-
-  if (atomicCamOn == false)
+  // mxIf::CameraBlock *camera_block = (mxIf::CameraBlock *)par;
+  while (atomicIsRunning)
   {
-    mxIf::CameraBlock::CameraConfig cam_cfg{mxIf::CameraBlock::CamMode::CamMode_720p, 30};
-    mxIf::CameraBlock::EncoderConfig enc_cfg {true, 25000000, 30, 30};
-    m_cam.reset(new mxIf::CameraBlock(cam_cfg, enc_cfg));
-    // auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
-    // m_cam.reset(new mxIf::CameraBlock(cam_mode));
-    m_cam->Start();
-    atomicCamOn = true;
+    mxIf::MemoryHandle bgr_hndl =
+        m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
+    uint8_t *pBuf = (uint8_t *)malloc(bgr_hndl.bufSize);
+    bgr_hndl.TransferTo(pBuf);
+    // fwrite(pBuf, sizeof(uint8_t), bgr_hndl.bufSize, tmp);
+    m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr_hndl);
+    if (pBuf)
+    {
+      free(pBuf);
+    }
   }
+}
+
+void record()
+{
+  mtx.lock();
+  // pthread_mutex_lock(&videoMutex);
+  atomicIsRunning = true;
 
   std::string f = randomString(16);
   fname = (char *)malloc(16 + 5 + 5 + 1);
@@ -303,32 +323,46 @@ void *record(void *par)
 
   // fname = tmpnam(NULL);
   tmp = fopen(fname, "wb");
-  while (true)
+  if (atomicCamOn == false)
   {
-    if (!atomicIsRunning)
-    {
-      break;
-    }
-    mxIf::MemoryHandle h264_hndl =
-        m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::H264);
-    mxIf::MemoryHandle bgr = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
+    mxIf::CameraBlock::CameraConfig cam_cfg{mxIf::CameraBlock::CamMode::CamMode_720p, 30};
+    mxIf::CameraBlock::EncoderConfig enc_cfg{true, 25000000, 30, 30};
+    m_cam.reset(new mxIf::CameraBlock(cam_cfg, enc_cfg));
+    // auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
+    // m_cam.reset(new mxIf::CameraBlock(cam_mode));
+    m_cam->Start();
+    atomicCamOn = true;
+  }
+
+  // int ret = pthread_create(&threadBGR, NULL, bgrThread, NULL);
+
+  while (atomicIsRunning)
+  {
+    mxIf::MemoryHandle h264_hndl = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::H264);
+    // mxIf::MemoryHandle bgr = m_cam->GetNextOutput(mxIf::CameraBlock::Outputs::BGR);
     uint8_t *pBuf = (uint8_t *)malloc(h264_hndl.bufSize);
     // uint8_t *pBufBGR = (uint8_t *)malloc(bgr.bufSize);
     // assert(nullptr != pBuf);
     // assert(nullptr != pBufBGR);
     h264_hndl.TransferTo(pBuf);
     // bgr.TransferTo(pBufBGR);
-
     fwrite(pBuf, sizeof(uint8_t), h264_hndl.bufSize, tmp);
 
-    m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr);
-    // m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::H264, h264_hndl);
+    // fwrite(pBuf, sizeof(uint8_t), h264_hndl.bufSize, tmp);
 
-    if(pBuf) {
+    // m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::BGR, bgr);
+    m_cam->ReleaseOutput(mxIf::CameraBlock::Outputs::H264, h264_hndl);
+    if (pBuf)
+    {
       free(pBuf);
     }
-    // free(pBufBGR);
+    // if (pBufBGR)
+    // {
+    //   free(pBufBGR);
+    // }
   }
+  // pthread_mutex_unlock(&videoMutex);
+  mtx.unlock();
 }
 
 // This thread must run during inference,
@@ -355,28 +389,47 @@ static PyObject *method_startrecording(PyObject *self, PyObject *args)
   {
     return NULL;
   }
+  if (atomicCamOn == false)
+  {
+    mxIf::CameraBlock::CameraConfig cam_cfg{mxIf::CameraBlock::CamMode::CamMode_720p, 30};
+    mxIf::CameraBlock::EncoderConfig enc_cfg{true, 25000000, 30, 30};
+    m_cam.reset(new mxIf::CameraBlock(cam_cfg, enc_cfg));
+    // auto cam_mode = mxIf::CameraBlock::CamMode::CamMode_720p;
+    // m_cam.reset(new mxIf::CameraBlock(cam_mode));
+    m_cam->Start();
+    atomicCamOn = true;
+  }
   out_file = (char *)malloc(strlen(out) + 1);
   strcpy(out_file, out);
-  pthread_t threadH;
-  // std::thread recordThread(record);
-  // recordThread.detach();
-  pthread_create(&threadH264, NULL, record, NULL);
+  // pthread_t threadH;
+  // pthread_create(&threadH264, NULL, record, NULL);
+  // pthread_create(&threadBGR, NULL, bgrThread, NULL);
+  recordThread = std::thread(record);
+  recordThread.detach();
+  pullThread = std::thread(bgrThread);
+  pullThread.detach();
   return Py_BuildValue("");
 }
 
 static PyObject *method_stoprecording(PyObject *self, PyObject *args)
 {
+  // pthread_mutex_unlock(&videoMutex);
   atomicIsRunning = false;
+  sleep(1);
   fclose(tmp);
-  if (threadH264)
-  {
-    pthread_cancel(threadH264);
-  }
+  // if (threadH264)
+  // {
+  //   pthread_cancel(threadH264);
+  // }
+  // if (threadBGR)
+  // {
+  //   pthread_cancel(threadBGR);
+  // }
   int res = convertVideo(fname, out_file);
-  if (remove(fname) != 0)
-  {
-    printf("Deleting temporary file failed\n");
-  }
+  // if (remove(fname) != 0)
+  // {
+  //   printf("Deleting temporary file failed\n");
+  // }
   if (res != 0)
   {
     printf("Converting video failed\n");
@@ -387,13 +440,21 @@ static PyObject *method_stoprecording(PyObject *self, PyObject *args)
   return Py_BuildValue("");
 }
 
+static PyObject *method_authorize(PyObject *self, PyObject *args)
+{
+  const int mcu_vid = 0x045E;
+  const int mcu_pid = 0x066F;
+  start_som_auth(mcu_vid, mcu_pid);
+  return Py_BuildValue("");
+}
+
 static PyObject *method_prepareeye(PyObject *self, PyObject *args)
 {
   if (!PyArg_ParseTuple(args, "s", &mvcmdFile))
   {
     return NULL;
   }
-
+  srand(time(NULL));
   mvLogLevelSet(MVLOG_ERROR);
   mvLogDefaultLevelSet(MVLOG_ERROR);
   mxIf::Boot(mvcmdFile);
@@ -770,6 +831,7 @@ static PyMethodDef EyeMethods[] = {
      "Stop Azure Eye video recording"},
     {"prepare_eye", method_prepareeye, METH_VARARGS,
      "Prepares the Azure Eye device"},
+    {"authorize", method_authorize, METH_VARARGS, "Authorizes the Azure Eye device"},
     {"close_eye", method_closedevice, METH_VARARGS, "Closes the Eye device"},
     {NULL, NULL, 0, NULL}};
 
