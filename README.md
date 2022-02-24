@@ -16,7 +16,9 @@ This package is intended to run on an Azure Percept device (or a container hoste
 
 ```
 sudo yum install python3-pip
-python3 -m pip install --upgrade pip
+python3 -m venv ~/.venv
+source ~/.venv/bin/activate
+pip3 install --upgrade pip
 pip3 install azure-percept
 sudo usermod -aG apdk_accessories,audio $(whoami)
 ```
