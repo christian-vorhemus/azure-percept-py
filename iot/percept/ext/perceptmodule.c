@@ -81,7 +81,6 @@ int writeWAVHeader(FILE *out, struct WavHeader *hdr)
 
 void *record(void *args)
 {
-  pthread_mutex_lock(&mutex);
   char *fname = args;
   FILE *out = fopen(fname, "wb");
   int err;
@@ -190,6 +189,7 @@ static PyObject *method_getraw(PyObject *self, PyObject *args)
 
 static PyObject *method_startrecording(PyObject *self, PyObject *args)
 {
+  pthread_mutex_lock(&mutex);
   char *fname;
   if (!PyArg_ParseTuple(args, "s", &fname))
   {
