@@ -299,6 +299,7 @@ static PyObject *method_prepareear(PyObject *self, PyObject *args)
 static PyObject *method_closeear(PyObject *self, PyObject *args)
 {
   snd_pcm_close(pcapture_handle);
+  pthread_mutex_unlock(&mutex);
   return Py_BuildValue("");
 }
 
