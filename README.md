@@ -159,8 +159,8 @@ while True:
 print("Authentication successful!")
 
 img = vision.get_frame() # get a camera frame from the Azure Vision device
-img = img[...,::-1].copy() # copy the BGR image as RGB
-pil_img = Image.fromarray(img) # convert the numpy array to a Pillow image
+img = img[...,::-1].copy() # copy the BGR image to RGB
+pil_img = Image.fromarray(img) # convert the numpy array to a Pillow image object
 pil_img.save("frame.jpg")
 vision.close()
 ```
