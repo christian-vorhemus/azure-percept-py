@@ -41,9 +41,6 @@ extern "C"
 #include "libavutil/imgutils.h"
 }
 
-#define mvLogDefaultLevelSet(MVLOG_ERROR)
-#define mvLogLevelSet(MVLOG_ERROR)
-
 extern "C"
 {
   bool start_som_auth(uint16_t som_vid, uint16_t som_pid);

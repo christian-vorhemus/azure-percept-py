@@ -144,12 +144,12 @@ static const char mvLogHeader[MVLOG_LAST][30] =
 // #ifdef __shave__
 // __attribute__((section(".laststage")))
 // #endif
-FUNCATTR_WEAK unsigned int __attribute__ ((weak)) MVLOGLEVEL(MVLOG_UNIT_NAME) = MVLOG_INFO;
+FUNCATTR_WEAK unsigned int __attribute__ ((weak)) MVLOGLEVEL(MVLOG_UNIT_NAME) = MVLOG_ERROR;
 
 // #ifdef __shave__
 // __attribute__((section(".laststage")))
 // #endif
-FUNCATTR_WEAK unsigned int __attribute__ ((weak)) MVLOGLEVEL(default) = MVLOG_WARN;
+FUNCATTR_WEAK unsigned int __attribute__ ((weak)) MVLOGLEVEL(default) = MVLOG_ERROR;
 
 #ifdef __shave__
 __attribute__((section(".laststage")))
